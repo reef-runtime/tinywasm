@@ -1,0 +1,13 @@
+[package]
+name = "wasm_test"
+description = "Local testing"
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+edition.workspace = true
+
+[dependencies]
+argh = { version = "0.1.12"}
+color-eyre = { version = "0.6.3"}
+log = { version = "0.4.21"}
+tinywasm = { path = "../crates/tinywasm/" }

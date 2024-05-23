@@ -2751,6 +2751,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "wasm_test"
+version = "0.7.0"
+dependencies = [
+ "argh",
+ "color-eyre",
+ "log",
+ "tinywasm",
+]
+
+[[package]]
 name = "wasmer"
 version = "4.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -1,5 +1,5 @@
 [workspace]
-members=["crates/*", "benchmarks", "scripts"]
+members=["crates/*", "benchmarks", "scripts", "reef_testing"]
 default-members=[".", "crates/tinywasm", "crates/types", "crates/parser"]
 resolver="2"
 
