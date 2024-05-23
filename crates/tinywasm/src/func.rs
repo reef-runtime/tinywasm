@@ -81,10 +81,9 @@ impl FuncHandle {
         // 9. Invoke the function instance
         let runtime = store.runtime();
         if !runtime.exec(store, &mut stack, max_cycles)? {
+            // panic!("{stack:?}");
             return Ok(CallResult::Incomplete(stack));
         }
-
-        panic!("{stack:?}");
 
         // Once the function returns:
         let result_m = func_ty.results.len();

@@ -152,7 +152,11 @@ fn run(module: Module) -> Result<()> {
 
     let mut stack = None;
 
+    let mut cycles = 0;
+
     loop {
+        cycles += 1;
+
         let call_res = main_fn.call(&mut store, (), stack, max_cycles).unwrap();
 
         match call_res {
@@ -163,11 +167,13 @@ fn run(module: Module) -> Result<()> {
             CallResultOuter::Incomplete(new_stack) => {
                 println!("incomplete execution: {new_stack:?}");
                 stack = Some(new_stack);
-            },
+            }
         }
 
         // println!("{:?}", call_res.unwrap());
     }
+
+    println!("Took {cycles} rounds");
 
     // if let Some(func) = func {
     //     let func = instance.exported_func_untyped(&store, &func)?;

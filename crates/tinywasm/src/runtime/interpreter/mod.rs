@@ -308,6 +308,8 @@ impl InterpreterRuntime {
             cf.instr_ptr += 1;
         }
 
+        stack.call_stack.push(cf)?;
+
         Ok(false)
     }
 
