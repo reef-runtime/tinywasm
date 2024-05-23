@@ -16,12 +16,18 @@ pub struct FuncHandle {
     pub name: Option<String>,
 }
 
+#[derive(Debug)]
+pub enum CallResult {
+    Done(Vec<WasmValue>),
+    Incomplete(Stack)
+}
+
 impl FuncHandle {
     /// Call a function (Invocation)
     ///
     /// See <https://webassembly.github.io/spec/core/exec/modules.html#invocation>
     #[inline]
-    pub fn call(&self, store: &mut Store, params: &[WasmValue], max_cycles: usize) -> Result<Vec<WasmValue>> {
+    pub fn call(&self, store: &mut Store, params: &[WasmValue], stack: Option<Stack>, max_cycles: usize) -> Result<CallResult> {
         // Comments are ordered by the steps in the spec
         // In this implementation, some steps are combined and ordered differently for performance reasons
 
@@ -38,13 +44,9 @@ impl FuncHandle {
         }
 
         // 5. For each value type and the corresponding value, check if types match
-        if !(func_ty.params.iter().zip(params).enumerate().all(
-            |(i, (ty, param))| {
-                if ty != &param.val_type() {
-                    false
-                } else {
-                    true
-                }
+        if !(func_ty.params.iter().zip(params).all(
+            |(ty, param)| {
+                ty == &param.val_type()
             },
         )) {
             return Err(Error::Other("Type mismatch".into()));
@@ -55,7 +57,7 @@ impl FuncHandle {
             Function::Host(host_func) => {
                 let func = &host_func.clone().func;
                 let ctx = FuncContext { store, module_addr: self.module_addr };
-                return (func)(ctx, params);
+                return Ok(CallResult::Done((func)(ctx, params)?))
             }
             Function::Wasm(wasm_func) => wasm_func,
         };
@@ -66,7 +68,10 @@ impl FuncHandle {
 
         // 7. Push the frame f to the call stack
         // & 8. Push the values to the stack (Not needed since the call frame owns the values)
-        let mut stack = Stack::new(call_frame);
+        let mut stack = match stack {
+            None => Stack::new(call_frame),
+            Some(old_stack) => old_stack,
+        };
 
         // 9. Invoke the function instance
         let runtime = store.runtime();
@@ -82,7 +87,7 @@ impl FuncHandle {
         let res = stack.values.last_n(result_m)?;
 
         // The values are returned as the results of the invocation.
-        Ok(res.iter().zip(func_ty.results.iter()).map(|(v, ty)| v.attach_type(*ty)).collect())
+        Ok(CallResult::Done(res.iter().zip(func_ty.results.iter()).map(|(v, ty)| v.attach_type(*ty)).collect()))
     }
 }
 
@@ -104,17 +109,24 @@ pub trait FromWasmValueTuple {
         Self: Sized;
 }
 
+pub enum CallResultOuter<R: FromWasmValueTuple> {
+    Done(R),
+    Incomplete(Stack),
+}
+
 impl<P: IntoWasmValueTuple, R: FromWasmValueTuple> FuncHandleTyped<P, R> {
     /// Call a typed function
-    pub fn call(&self, store: &mut Store, params: P, max_cycles: usize) -> Result<R> {
+    pub fn call(&self, store: &mut Store, params: P, stack: Option<Stack>, max_cycles: usize) -> Result<CallResultOuter<R>> {
         // Convert params into Vec<WasmValue>
         let wasm_values = params.into_wasm_value_tuple();
 
         // Call the underlying WASM function
-        let result = self.func.call(store, &wasm_values, max_cycles)?;
+        let result = self.func.call(store, &wasm_values, stack, max_cycles)?;
 
-        // Convert the Vec<WasmValue> back to R
-        R::from_wasm_value_tuple(&result)
+        Ok(match result {
+            CallResult::Done(values) => CallResultOuter::Done(R::from_wasm_value_tuple(&values)?),
+            CallResult::Incomplete(stack) => CallResultOuter::Incomplete(stack),
+        })
     }
 }
 

@@ -13,7 +13,7 @@ macro_rules! break_to {
     ($cf:ident, $stack:ident, $module:ident, $store:ident, $break_to_relative:ident) => {{
         if $cf.break_to(*$break_to_relative, &mut $stack.values, &mut $stack.blocks).is_none() {
             if $stack.call_stack.is_empty() {
-                return Ok(());
+                return Ok(true);
             }
 
             call!($cf, $stack, $module, $store)

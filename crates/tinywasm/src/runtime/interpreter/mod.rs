@@ -20,7 +20,7 @@ mod no_std_floats;
 use no_std_floats::NoStdFloatExt;
 
 impl InterpreterRuntime {
-    pub(crate) fn exec(&self, store: &mut Store, stack: &mut Stack, max_cycles: usize) -> Result<()> {
+    pub(crate) fn exec(&self, store: &mut Store, stack: &mut Stack, max_cycles: usize) -> Result<bool> {
         let mut cf = stack.call_stack.pop()?;
         let mut module = store.get_module_instance_raw(cf.module_addr);
 
@@ -71,7 +71,7 @@ impl InterpreterRuntime {
                 }
 
                 Return => match stack.call_stack.is_empty() {
-                    true => return Ok(()),
+                    true => return Ok(true),
                     false => call!(cf, stack, module, store),
                 },
 
@@ -308,7 +308,7 @@ impl InterpreterRuntime {
             cf.instr_ptr += 1;
         }
 
-        Ok(())
+        Ok(false)
     }
 
     #[inline(always)]

@@ -266,7 +266,7 @@ impl ModuleInstance {
             return Ok(None);
         };
 
-        let _ = func.call(store, &[], max_cycles)?;
+        let _ = func.call(store, &[], None, max_cycles)?;
         Ok(Some(()))
     }
 }
