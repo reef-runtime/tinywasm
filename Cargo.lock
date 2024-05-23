@@ -667,7 +667,7 @@ dependencies = [
  "serde_json",
  "tinywasm-parser",
  "tinywasm-types",
- "wast 208.0.1",
+ "wast",
 ]
 
 [[package]]
@@ -677,16 +677,6 @@ dependencies = [
  "log",
  "tinywasm-types",
  "wasmparser",
-]
-
-[[package]]
-name = "tinywasm-root"
-version = "0.0.0"
-dependencies = [
- "color-eyre",
- "pretty_env_logger",
- "tinywasm",
- "wat",
 ]
 
 [[package]]
@@ -777,15 +767,6 @@ checksum = "9c8d87e72b64a3b4db28d11ce29237c246188f4f51057d65a7eab63b7987e423"
 
 [[package]]
 name = "wasm-encoder"
-version = "0.32.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ba64e81215916eaeb48fee292f29401d69235d62d8b8fd92a7b2844ec5ae5f7"
-dependencies = [
- "leb128",
-]
-
-[[package]]
-name = "wasm-encoder"
 version = "0.208.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6425e84e42f7f558478e40ecc2287912cb319f2ca68e5c0bb93c61d4fc63fa17"
@@ -818,18 +799,6 @@ dependencies = [
 
 [[package]]
 name = "wast"
-version = "64.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a259b226fd6910225aa7baeba82f9d9933b6d00f2ce1b49b80fa4214328237cc"
-dependencies = [
- "leb128",
- "memchr",
- "unicode-width",
- "wasm-encoder 0.32.0",
-]
-
-[[package]]
-name = "wast"
 version = "208.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc00b3f023b4e2ccd2e054e240294263db52ae962892e6523e550783c83a67f1"
@@ -838,16 +807,7 @@ dependencies = [
  "leb128",
  "memchr",
  "unicode-width",
- "wasm-encoder 0.208.1",
-]
-
-[[package]]
-name = "wat"
-version = "1.0.71"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53253d920ab413fca1c7dc2161d601c79b4fdf631d0ba51dd4343bf9b556c3f6"
-dependencies = [
- "wast 64.0.0",
+ "wasm-encoder",
 ]
 
 [[package]]
