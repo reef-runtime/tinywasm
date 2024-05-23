@@ -21,7 +21,7 @@ impl FuncHandle {
     ///
     /// See <https://webassembly.github.io/spec/core/exec/modules.html#invocation>
     #[inline]
-    pub fn call(&self, store: &mut Store, params: &[WasmValue]) -> Result<Vec<WasmValue>> {
+    pub fn call(&self, store: &mut Store, params: &[WasmValue], max_cycles: usize) -> Result<Vec<WasmValue>> {
         // Comments are ordered by the steps in the spec
         // In this implementation, some steps are combined and ordered differently for performance reasons
 
@@ -70,7 +70,7 @@ impl FuncHandle {
 
         // 9. Invoke the function instance
         let runtime = store.runtime();
-        runtime.exec(store, &mut stack)?;
+        runtime.exec(store, &mut stack, max_cycles)?;
 
         // Once the function returns:
         let result_m = func_ty.results.len();
@@ -106,12 +106,12 @@ pub trait FromWasmValueTuple {
 
 impl<P: IntoWasmValueTuple, R: FromWasmValueTuple> FuncHandleTyped<P, R> {
     /// Call a typed function
-    pub fn call(&self, store: &mut Store, params: P) -> Result<R> {
+    pub fn call(&self, store: &mut Store, params: P, max_cycles: usize) -> Result<R> {
         // Convert params into Vec<WasmValue>
         let wasm_values = params.into_wasm_value_tuple();
 
         // Call the underlying WASM function
-        let result = self.func.call(store, &wasm_values)?;
+        let result = self.func.call(store, &wasm_values, max_cycles)?;
 
         // Convert the Vec<WasmValue> back to R
         R::from_wasm_value_tuple(&result)

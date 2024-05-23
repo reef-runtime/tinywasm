@@ -53,9 +53,9 @@ impl Module {
     /// If you want to run the start function yourself, use `ModuleInstance::instantiate`
     ///
     /// See <https://webassembly.github.io/spec/core/exec/modules.html#exec-instantiation>
-    pub fn instantiate(self, store: &mut Store, imports: Option<Imports>) -> Result<ModuleInstance> {
+    pub fn instantiate(self, store: &mut Store, imports: Option<Imports>, max_cycles: usize) -> Result<ModuleInstance> {
         let instance = ModuleInstance::instantiate(store, self, imports)?;
-        let _ = instance.start(store)?;
+        let _ = instance.start(store, max_cycles)?;
         Ok(instance)
     }
 }

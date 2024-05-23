@@ -1,4 +1,4 @@
-#![no_std]
+// #![no_std]
 #![doc(test(
     no_crate_inject,
     attr(deny(warnings, rust_2018_idioms), allow(dead_code, unused_assignments, unused_variables))

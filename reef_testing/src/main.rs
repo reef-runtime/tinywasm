@@ -141,7 +141,9 @@ fn run(module: Module) -> Result<()> {
         // .define("my_module", "global_i32", Extern::global(WasmValue::I32(666), false))?
         .link_module("my_other_module", 0)?;
 
-    let _instance = module.instantiate(&mut store, Some(imports))?;
+    let max_cycles = 10;
+
+    let _instance = module.instantiate(&mut store, Some(imports), max_cycles)?;
 
     // if let Some(func) = func {
     //     let func = instance.exported_func_untyped(&store, &func)?;

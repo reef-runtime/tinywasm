@@ -261,12 +261,12 @@ impl ModuleInstance {
     /// Returns None if the module has no start function
     ///
     /// See <https://webassembly.github.io/spec/core/syntax/modules.html#syntax-start>
-    pub fn start(&self, store: &mut Store) -> Result<Option<()>> {
+    pub fn start(&self, store: &mut Store, max_cycles: usize) -> Result<Option<()>> {
         let Some(func) = self.start_func(store)? else {
             return Ok(None);
         };
 
-        let _ = func.call(store, &[])?;
+        let _ = func.call(store, &[], max_cycles)?;
         Ok(Some(()))
     }
 }

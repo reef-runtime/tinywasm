@@ -20,13 +20,18 @@ mod no_std_floats;
 use no_std_floats::NoStdFloatExt;
 
 impl InterpreterRuntime {
-    pub(crate) fn exec(&self, store: &mut Store, stack: &mut Stack) -> Result<()> {
+    pub(crate) fn exec(&self, store: &mut Store, stack: &mut Stack, max_cycles: usize) -> Result<()> {
         let mut cf = stack.call_stack.pop()?;
         let mut module = store.get_module_instance_raw(cf.module_addr);
 
-        loop {
+        for _ in 0..=max_cycles {
             use tinywasm_types::Instruction::*;
-            match cf.fetch_instr() {
+
+            let curr_instr = cf.fetch_instr();
+
+            println!("CURR_INSTR: {:?}", curr_instr);
+
+            match curr_instr {
                 Nop => cold(),
                 Unreachable => self.exec_unreachable()?,
                 Drop => stack.values.pop().map(|_| ())?,
@@ -302,6 +307,8 @@ impl InterpreterRuntime {
 
             cf.instr_ptr += 1;
         }
+
+        Ok(())
     }
 
     #[inline(always)]
