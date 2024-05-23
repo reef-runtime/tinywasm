@@ -1,5 +1,5 @@
 [workspace]
-members=["crates/*", "benchmarks", "scripts", "reef_testing"]
+members=["crates/*", "reef_testing"]
 default-members=[".", "crates/tinywasm", "crates/types", "crates/parser"]
 resolver="2"
 
@@ -22,9 +22,13 @@ name="tinywasm-root"
 publish=false
 edition="2021"
 
-[[example]]
-name="wasm-rust"
-test=false
+# [[bin]]
+# name="wasm-rust"
+# test=false
+
+[[bin]]
+name = "reef_testing"
+path ="reef_testing"
 
 [dev-dependencies]
 color-eyre="0.6"
