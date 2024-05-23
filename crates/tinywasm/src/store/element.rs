@@ -8,12 +8,11 @@ use tinywasm_types::*;
 #[derive(Debug)]
 pub(crate) struct ElementInstance {
     pub(crate) kind: ElementKind,
-    pub(crate) items: Option<Vec<TableElement>>, // none is the element was dropped
-    _owner: ModuleInstanceAddr,                  // index into store.module_instances
+    pub(crate) items: Option<Vec<TableElement>>, // none is the element was dropped              // index into store.module_instances
 }
 
 impl ElementInstance {
-    pub(crate) fn new(kind: ElementKind, owner: ModuleInstanceAddr, items: Option<Vec<TableElement>>) -> Self {
-        Self { kind, _owner: owner, items }
+    pub(crate) fn new(kind: ElementKind, items: Option<Vec<TableElement>>) -> Self {
+        Self { kind, items }
     }
 }

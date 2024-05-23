@@ -12,12 +12,11 @@ const MAX_TABLE_SIZE: u32 = 10000000;
 pub(crate) struct TableInstance {
     pub(crate) elements: Vec<TableElement>,
     pub(crate) kind: TableType,
-    pub(crate) _owner: ModuleInstanceAddr, // index into store.module_instances
 }
 
 impl TableInstance {
-    pub(crate) fn new(kind: TableType, owner: ModuleInstanceAddr) -> Self {
-        Self { elements: vec![TableElement::Uninitialized; kind.size_initial as usize], kind, _owner: owner }
+    pub(crate) fn new(kind: TableType) -> Self {
+        Self { elements: vec![TableElement::Uninitialized; kind.size_initial as usize], kind }
     }
 
     pub(crate) fn get_wasm_val(&self, addr: TableAddr) -> Result<WasmValue> {
@@ -129,14 +128,14 @@ mod tests {
     #[test]
     fn test_table_instance_creation() {
         let kind = dummy_table_type();
-        let table_instance = TableInstance::new(kind.clone(), 0);
+        let table_instance = TableInstance::new(kind.clone());
         assert_eq!(table_instance.size(), kind.size_initial as i32, "Table instance creation failed: size mismatch");
     }
 
     #[test]
     fn test_get_wasm_val() {
         let kind = dummy_table_type();
-        let mut table_instance = TableInstance::new(kind, 0);
+        let mut table_instance = TableInstance::new(kind);
 
         table_instance.set(0, 0).expect("Setting table element failed");
 
@@ -154,7 +153,7 @@ mod tests {
     #[test]
     fn test_set_and_get() {
         let kind = dummy_table_type();
-        let mut table_instance = TableInstance::new(kind, 0);
+        let mut table_instance = TableInstance::new(kind);
 
         let result = table_instance.set(0, 1);
         assert!(result.is_ok(), "Setting table element failed");
@@ -169,7 +168,7 @@ mod tests {
     #[test]
     fn test_table_grow_and_fit() {
         let kind = dummy_table_type();
-        let mut table_instance = TableInstance::new(kind, 0);
+        let mut table_instance = TableInstance::new(kind);
 
         let result = table_instance.set(15, 1);
         assert!(result.is_ok(), "Table grow on set failed");
@@ -181,7 +180,7 @@ mod tests {
     #[test]
     fn test_table_init() {
         let kind = dummy_table_type();
-        let mut table_instance = TableInstance::new(kind, 0);
+        let mut table_instance = TableInstance::new(kind);
 
         let init_elements = vec![TableElement::Initialized(0); 5];
         let func_addrs = vec![0, 1, 2, 3, 4];

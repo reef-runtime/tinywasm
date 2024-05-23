@@ -26,14 +26,14 @@ pub struct InterpreterRuntime {}
 impl InterpreterRuntime {
     pub(crate) fn exec(&self, store: &mut Store, stack: &mut Stack, max_cycles: usize) -> Result<bool> {
         let mut cf = stack.call_stack.pop()?;
-        let mut module = store.get_module_instance_raw(cf.module_addr);
+        let mut module = store.get_module_instance().unwrap().clone();
 
         for _ in 0..=max_cycles {
             use tinywasm_types::Instruction::*;
 
             let curr_instr = cf.fetch_instr();
 
-            println!("CURR_INSTR: {:?}", curr_instr);
+            // println!("CURR_INSTR: {:?}", curr_instr);
 
             match curr_instr {
                 Nop => cold(),
@@ -646,7 +646,7 @@ impl InterpreterRuntime {
             crate::Function::Host(host_func) => {
                 let func = &host_func.clone();
                 let params = stack.values.pop_params(&host_func.ty.params)?;
-                let res = (func.func)(FuncContext { store, module_addr: module.id() }, &params)?;
+                let res = (func.func)(FuncContext { store }, &params)?;
                 stack.values.extend_from_typed(&res);
                 cf.instr_ptr += 1;
                 return Ok(());
@@ -654,13 +654,10 @@ impl InterpreterRuntime {
         };
 
         let params = stack.values.pop_n_rev(wasm_func.ty.params.len())?;
-        let new_call_frame = CallFrame::new(wasm_func.clone(), func_inst.owner, params, stack.blocks.len() as u32);
+        let new_call_frame = CallFrame::new(wasm_func.clone(), params, stack.blocks.len() as u32);
 
         cf.instr_ptr += 1; // skip the call instruction
         stack.call_stack.push(core::mem::replace(cf, new_call_frame))?;
-        if cf.module_addr != module.id() {
-            module.swap_with(cf.module_addr, store);
-        }
         Ok(())
     }
 
@@ -700,7 +697,7 @@ impl InterpreterRuntime {
 
                 let host_func = host_func.clone();
                 let params = stack.values.pop_params(&host_func.ty.params)?;
-                let res = (host_func.func)(FuncContext { store, module_addr: module.id() }, &params)?;
+                let res = (host_func.func)(FuncContext { store }, &params)?;
                 stack.values.extend_from_typed(&res);
 
                 cf.instr_ptr += 1;
@@ -715,13 +712,11 @@ impl InterpreterRuntime {
         }
 
         let params = stack.values.pop_n_rev(wasm_func.ty.params.len())?;
-        let new_call_frame = CallFrame::new(wasm_func.clone(), func_inst.owner, params, stack.blocks.len() as u32);
+        let new_call_frame = CallFrame::new(wasm_func.clone(), params, stack.blocks.len() as u32);
 
         cf.instr_ptr += 1; // skip the call instruction
         stack.call_stack.push(core::mem::replace(cf, new_call_frame))?;
-        if cf.module_addr != module.id() {
-            module.swap_with(cf.module_addr, store);
-        }
+
         Ok(())
     }
 

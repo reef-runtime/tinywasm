@@ -17,9 +17,6 @@ pub struct ModuleInstance(Rc<ModuleInstanceInner>);
 pub(crate) struct ModuleInstanceInner {
     pub(crate) failed_to_instantiate: bool,
 
-    pub(crate) store_id: usize,
-    pub(crate) idx: ModuleInstanceAddr,
-
     pub(crate) types: Box<[FuncType]>,
 
     pub(crate) func_addrs: Box<[FuncAddr]>,
@@ -35,23 +32,6 @@ pub(crate) struct ModuleInstanceInner {
 }
 
 impl ModuleInstance {
-    // drop the module instance reference and swap it with another one
-    #[inline]
-    pub(crate) fn swap(&mut self, other: Self) {
-        self.0 = other.0;
-    }
-
-    #[inline]
-    pub(crate) fn swap_with(&mut self, other_addr: ModuleInstanceAddr, store: &mut Store) {
-        self.swap(store.get_module_instance_raw(other_addr))
-    }
-
-    /// Get the module instance's address
-    #[inline]
-    pub fn id(&self) -> ModuleInstanceAddr {
-        self.0.idx
-    }
-
     /// Instantiate the module in the given store
     ///
     /// See <https://webassembly.github.io/spec/core/exec/modules.html#exec-instantiation>
@@ -60,23 +40,20 @@ impl ModuleInstance {
         // Constant expressions are evaluated directly where they are used, so we
         // don't need to create a auxiliary frame etc.
 
-        let idx = store.next_module_instance_idx();
-        let mut addrs = imports.unwrap_or_default().link(store, &module, idx)?;
+        let mut addrs = imports.unwrap_or_default().link(store, &module)?;
         let data = module.data;
 
-        addrs.funcs.extend(store.init_funcs(data.funcs.into(), idx)?);
-        addrs.tables.extend(store.init_tables(data.table_types.into(), idx)?);
-        addrs.memories.extend(store.init_memories(data.memory_types.into(), idx)?);
+        addrs.funcs.extend(store.init_funcs(data.funcs.into())?);
+        addrs.tables.extend(store.init_tables(data.table_types.into())?);
+        addrs.memories.extend(store.init_memories(data.memory_types.into())?);
 
-        let global_addrs = store.init_globals(addrs.globals, data.globals.into(), &addrs.funcs, idx)?;
+        let global_addrs = store.init_globals(addrs.globals, data.globals.into(), &addrs.funcs)?;
         let (elem_addrs, elem_trapped) =
-            store.init_elements(&addrs.tables, &addrs.funcs, &global_addrs, &data.elements, idx)?;
-        let (data_addrs, data_trapped) = store.init_datas(&addrs.memories, data.data.into(), idx)?;
+            store.init_elements(&addrs.tables, &addrs.funcs, &global_addrs, &data.elements)?;
+        let (data_addrs, data_trapped) = store.init_datas(&addrs.memories, data.data.into())?;
 
         let instance = ModuleInstanceInner {
             failed_to_instantiate: elem_trapped.is_some() || data_trapped.is_some(),
-            store_id: store.id(),
-            idx,
             types: data.func_types,
             func_addrs: addrs.funcs.into_boxed_slice(),
             table_addrs: addrs.tables.into_boxed_slice(),
@@ -169,10 +146,6 @@ impl ModuleInstance {
 
     /// Get an exported function by name
     pub fn exported_func_untyped(&self, store: &Store, name: &str) -> Result<FuncHandle> {
-        if self.0.store_id != store.id() {
-            return Err(Error::InvalidStore);
-        }
-
         let export = self.export_addr(name).ok_or_else(|| Error::Other(format!("Export not found: {}", name)))?;
         let ExternVal::Func(func_addr) = export else {
             return Err(Error::Other(format!("Export is not a function: {}", name)));
@@ -181,7 +154,7 @@ impl ModuleInstance {
         let func_inst = store.get_func(func_addr)?;
         let ty = func_inst.func.ty();
 
-        Ok(FuncHandle { addr: func_addr, module_addr: self.id(), name: Some(name.to_string()), ty: ty.clone() })
+        Ok(FuncHandle { addr: func_addr, name: Some(name.to_string()), ty: ty.clone() })
     }
 
     /// Get a typed exported function by name
@@ -233,10 +206,6 @@ impl ModuleInstance {
     ///
     /// See <https://webassembly.github.io/spec/core/syntax/modules.html#start-function>
     pub fn start_func(&self, store: &Store) -> Result<Option<FuncHandle>> {
-        if self.0.store_id != store.id() {
-            return Err(Error::InvalidStore);
-        }
-
         let func_index = match self.0.func_start {
             Some(func_index) => func_index,
             None => {
@@ -253,7 +222,7 @@ impl ModuleInstance {
         let func_inst = store.get_func(*func_addr)?;
         let ty = func_inst.func.ty();
 
-        Ok(Some(FuncHandle { module_addr: self.id(), addr: *func_addr, ty: ty.clone(), name: None }))
+        Ok(Some(FuncHandle { addr: *func_addr, ty: ty.clone(), name: None }))
     }
 
     /// Invoke the start function of the module

@@ -1,6 +1,6 @@
 use crate::{runtime::RawWasmValue, unlikely, Function};
 use alloc::{boxed::Box, format, string::String, string::ToString, vec, vec::Vec};
-use tinywasm_types::{FuncType, ModuleInstanceAddr, ValType, WasmValue};
+use tinywasm_types::{FuncType, ValType, WasmValue};
 
 use crate::runtime::{CallFrame, Stack};
 use crate::{Error, FuncContext, Result, Store};
@@ -8,7 +8,6 @@ use crate::{Error, FuncContext, Result, Store};
 #[derive(Debug)]
 /// A function handle
 pub struct FuncHandle {
-    pub(crate) module_addr: ModuleInstanceAddr,
     pub(crate) addr: u32,
     pub(crate) ty: FuncType,
 
@@ -58,7 +57,7 @@ impl FuncHandle {
         let wasm_func = match &func_inst.func {
             Function::Host(host_func) => {
                 let func = &host_func.clone().func;
-                let ctx = FuncContext { store, module_addr: self.module_addr };
+                let ctx = FuncContext { store };
                 return Ok(CallResult::Done((func)(ctx, params)?));
             }
             Function::Wasm(wasm_func) => wasm_func,
@@ -70,7 +69,7 @@ impl FuncHandle {
                 // 7. Push the frame f to the call stack
                 // & 8. Push the values to the stack (Not needed since the call frame owns the values)
                 let call_frame_params = params.iter().map(|v| RawWasmValue::from(*v));
-                let call_frame = CallFrame::new(wasm_func.clone(), func_inst.owner, call_frame_params, 0);
+                let call_frame = CallFrame::new(wasm_func.clone(), call_frame_params, 0);
                 Stack::new(call_frame)
             }
             Some(old_stack) => old_stack,

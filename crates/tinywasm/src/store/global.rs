@@ -12,12 +12,11 @@ use crate::{runtime::RawWasmValue, unlikely, Error, Result};
 pub(crate) struct GlobalInstance {
     pub(crate) value: Cell<RawWasmValue>,
     pub(crate) ty: GlobalType,
-    pub(crate) _owner: ModuleInstanceAddr, // index into store.module_instances
 }
 
 impl GlobalInstance {
-    pub(crate) fn new(ty: GlobalType, value: RawWasmValue, owner: ModuleInstanceAddr) -> Self {
-        Self { ty, value: value.into(), _owner: owner }
+    pub(crate) fn new(ty: GlobalType, value: RawWasmValue) -> Self {
+        Self { ty, value: value.into() }
     }
 
     #[inline]
@@ -51,9 +50,8 @@ mod tests {
     fn test_global_instance_get_set() {
         let global_type = GlobalType { ty: ValType::I32, mutable: true };
         let initial_value = RawWasmValue::from(10i32);
-        let owner = 0;
 
-        let mut global_instance = GlobalInstance::new(global_type, initial_value, owner);
+        let mut global_instance = GlobalInstance::new(global_type, initial_value);
 
         // Test `get`
         assert_eq!(global_instance.get(), WasmValue::I32(10), "global value should be 10");
@@ -67,7 +65,7 @@ mod tests {
 
         // Test `set` on immutable global
         let immutable_global_type = GlobalType { ty: ValType::I32, mutable: false };
-        let mut immutable_global_instance = GlobalInstance::new(immutable_global_type, initial_value, owner);
+        let mut immutable_global_instance = GlobalInstance::new(immutable_global_type, initial_value);
         assert!(matches!(immutable_global_instance.set(WasmValue::I32(30)), Err(Error::Other(_))));
     }
 }

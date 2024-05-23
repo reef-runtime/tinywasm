@@ -1,6 +1,6 @@
 use alloc::vec;
 use alloc::vec::Vec;
-use tinywasm_types::{MemoryType, ModuleInstanceAddr};
+use tinywasm_types::MemoryType;
 
 use crate::{Error, Result};
 
@@ -16,18 +16,16 @@ pub(crate) struct MemoryInstance {
     pub(crate) kind: MemoryType,
     pub(crate) data: Vec<u8>,
     pub(crate) page_count: usize,
-    pub(crate) _owner: ModuleInstanceAddr, // index into store.module_instances
 }
 
 impl MemoryInstance {
-    pub(crate) fn new(kind: MemoryType, owner: ModuleInstanceAddr) -> Self {
+    pub(crate) fn new(kind: MemoryType) -> Self {
         assert!(kind.page_count_initial <= kind.page_count_max.unwrap_or(MAX_PAGES as u64));
 
         Self {
             kind,
             data: vec![0; PAGE_SIZE * kind.page_count_initial as usize],
             page_count: kind.page_count_initial as usize,
-            _owner: owner,
         }
     }
 
@@ -181,8 +179,7 @@ mod memory_instance_tests {
 
     fn create_test_memory() -> MemoryInstance {
         let kind = MemoryType { arch: MemoryArch::I32, page_count_initial: 1, page_count_max: Some(2) };
-        let owner = ModuleInstanceAddr::default();
-        MemoryInstance::new(kind, owner)
+        MemoryInstance::new(kind)
     }
 
     #[test]

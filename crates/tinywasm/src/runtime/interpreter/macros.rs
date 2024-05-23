@@ -209,10 +209,6 @@ macro_rules! call {
             $stack.blocks.truncate(old);
         }
 
-        if $cf.module_addr != $module.id() {
-            $module.swap_with($cf.module_addr, $store);
-        }
-
         continue;
     }};
 }

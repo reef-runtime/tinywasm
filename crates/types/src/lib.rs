@@ -115,7 +115,6 @@ pub type ExternAddr = Addr;
 pub type TypeAddr = Addr;
 pub type LocalAddr = Addr;
 pub type LabelAddr = Addr;
-pub type ModuleInstanceAddr = Addr;
 
 /// A WebAssembly External Value.
 ///

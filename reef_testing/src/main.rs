@@ -135,12 +135,12 @@ fn run(module: Module) -> Result<()> {
     // let table_type = TableType::new(ValType::RefFunc, 10, Some(20));
     // let table_init = WasmValue::default_for(ValType::RefFunc);
 
-    imports
-        // .define("reef", "log", log)?
-        // .define("my_module", "table", Extern::table(table_type, table_init))?
-        // .define("my_module", "memory", Extern::memory(MemoryType::new_32(1, Some(2))))?
-        // .define("my_module", "global_i32", Extern::global(WasmValue::I32(666), false))?
-        .link_module("my_other_module", 0)?;
+    // imports
+    // .define("reef", "log", log)?
+    // .define("my_module", "table", Extern::table(table_type, table_init))?
+    // .define("my_module", "memory", Extern::memory(MemoryType::new_32(1, Some(2))))?
+    // .define("my_module", "global_i32", Extern::global(WasmValue::I32(666), false))?
+    // .link_module("my_other_module")?;
 
     let max_cycles = 10;
 
@@ -165,7 +165,7 @@ fn run(module: Module) -> Result<()> {
                 break;
             }
             CallResultOuter::Incomplete(new_stack) => {
-                println!("incomplete execution: {new_stack:?}");
+                // println!("incomplete execution: {new_stack:?}");
                 stack = Some(new_stack);
             }
         }
