@@ -3,7 +3,7 @@ use core::cell::RefCell;
 use tinywasm_types::*;
 
 use crate::runtime::RawWasmValue;
-use crate::{Error, Function, ModuleInstance, Result, Trap};
+use crate::{Error, Function, Result, Trap};
 
 mod data;
 mod element;
@@ -14,46 +14,12 @@ mod table;
 
 pub(crate) use {data::*, element::*, function::*, global::*, memory::*, table::*};
 
-/// Global state that can be manipulated by WebAssembly programs
-///
-/// Data should only be addressable by the module that owns it
-///
-/// Note that the state doesn't do any garbage collection - so it will grow
-/// indefinitely if you keep adding modules to it. When calling temporary
-/// functions, you should create a new store and then drop it when you're done (e.g. in a request handler)
-///
-///  See <https://webassembly.github.io/spec/core/exec/runtime.html#store>
-#[derive(Debug)]
-pub struct Store {
-    module_instance: Option<ModuleInstance>,
-
-    pub(crate) data: StoreData,
-}
-
-impl Store {
-    /// Create a new store
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Get a module instance by the internal id
-    pub fn get_module_instance(&self) -> Option<&ModuleInstance> {
-        self.module_instance.as_ref()
-    }
-}
-
-impl Default for Store {
-    fn default() -> Self {
-        Self { module_instance: None, data: StoreData::default() }
-    }
-}
-
 #[derive(Debug, Default)]
 /// Global state that can be manipulated by WebAssembly programs
 ///
 /// Data should only be addressable by the module that owns it
 /// See <https://webassembly.github.io/spec/core/exec/runtime.html#store>
-pub(crate) struct StoreData {
+pub(crate) struct Store {
     pub(crate) funcs: Vec<FunctionInstance>,
     pub(crate) tables: Vec<RefCell<TableInstance>>,
     pub(crate) memories: Vec<RefCell<MemoryInstance>>,
@@ -63,10 +29,6 @@ pub(crate) struct StoreData {
 }
 
 impl Store {
-    pub(crate) fn add_instance(&mut self, instance: ModuleInstance) {
-        self.module_instance = Some(instance);
-    }
-
     #[cold]
     fn not_found_error(name: &str) -> Error {
         Error::Other(format!("{} not found", name))
@@ -75,53 +37,49 @@ impl Store {
     /// Get the function at the actual index in the store
     #[inline]
     pub(crate) fn get_func(&self, addr: FuncAddr) -> Result<&FunctionInstance> {
-        self.data.funcs.get(addr as usize).ok_or_else(|| Self::not_found_error("function"))
+        self.funcs.get(addr as usize).ok_or_else(|| Self::not_found_error("function"))
     }
 
     /// Get the memory at the actual index in the store
     #[inline]
     pub(crate) fn get_mem(&self, addr: MemAddr) -> Result<&RefCell<MemoryInstance>> {
-        self.data.memories.get(addr as usize).ok_or_else(|| Self::not_found_error("memory"))
+        self.memories.get(addr as usize).ok_or_else(|| Self::not_found_error("memory"))
     }
 
     /// Get the table at the actual index in the store
     #[inline]
     pub(crate) fn get_table(&self, addr: TableAddr) -> Result<&RefCell<TableInstance>> {
-        self.data.tables.get(addr as usize).ok_or_else(|| Self::not_found_error("table"))
+        self.tables.get(addr as usize).ok_or_else(|| Self::not_found_error("table"))
     }
 
     /// Get the data at the actual index in the store
     #[inline]
     pub(crate) fn get_data(&self, addr: DataAddr) -> Result<&DataInstance> {
-        self.data.datas.get(addr as usize).ok_or_else(|| Self::not_found_error("data"))
+        self.datas.get(addr as usize).ok_or_else(|| Self::not_found_error("data"))
     }
 
     /// Get the data at the actual index in the store
     #[inline]
     pub(crate) fn get_data_mut(&mut self, addr: DataAddr) -> Result<&mut DataInstance> {
-        self.data.datas.get_mut(addr as usize).ok_or_else(|| Self::not_found_error("data"))
+        self.datas.get_mut(addr as usize).ok_or_else(|| Self::not_found_error("data"))
     }
 
     /// Get the element at the actual index in the store
     #[inline]
     pub(crate) fn get_elem(&self, addr: ElemAddr) -> Result<&ElementInstance> {
-        self.data.elements.get(addr as usize).ok_or_else(|| Self::not_found_error("element"))
+        self.elements.get(addr as usize).ok_or_else(|| Self::not_found_error("element"))
     }
 
     /// Get the global at the actual index in the store
     #[inline]
     pub fn get_global_val(&self, addr: MemAddr) -> Result<RawWasmValue> {
-        self.data
-            .globals
-            .get(addr as usize)
-            .ok_or_else(|| Self::not_found_error("global"))
-            .map(|global| global.value.get())
+        self.globals.get(addr as usize).ok_or_else(|| Self::not_found_error("global")).map(|global| global.value.get())
     }
 
     /// Set the global at the actual index in the store
     #[inline]
     pub(crate) fn set_global_val(&mut self, addr: MemAddr, value: RawWasmValue) -> Result<()> {
-        let global = self.data.globals.get(addr as usize).ok_or_else(|| Self::not_found_error("global"));
+        let global = self.globals.get(addr as usize).ok_or_else(|| Self::not_found_error("global"));
         global.map(|global| global.value.set(value))
     }
 }
@@ -130,10 +88,10 @@ impl Store {
 impl Store {
     /// Add functions to the store, returning their addresses in the store
     pub(crate) fn init_funcs(&mut self, funcs: Vec<WasmFunction>) -> Result<Vec<FuncAddr>> {
-        let func_count = self.data.funcs.len();
+        let func_count = self.funcs.len();
         let mut func_addrs = Vec::with_capacity(func_count);
         for (i, func) in funcs.into_iter().enumerate() {
-            self.data.funcs.push(FunctionInstance::new_wasm(func));
+            self.funcs.push(FunctionInstance::new_wasm(func));
             func_addrs.push((i + func_count) as FuncAddr);
         }
         Ok(func_addrs)
@@ -141,10 +99,10 @@ impl Store {
 
     /// Add tables to the store, returning their addresses in the store
     pub(crate) fn init_tables(&mut self, tables: Vec<TableType>) -> Result<Vec<TableAddr>> {
-        let table_count = self.data.tables.len();
+        let table_count = self.tables.len();
         let mut table_addrs = Vec::with_capacity(table_count);
         for (i, table) in tables.into_iter().enumerate() {
-            self.data.tables.push(RefCell::new(TableInstance::new(table)));
+            self.tables.push(RefCell::new(TableInstance::new(table)));
             table_addrs.push((i + table_count) as TableAddr);
         }
         Ok(table_addrs)
@@ -152,13 +110,13 @@ impl Store {
 
     /// Add memories to the store, returning their addresses in the store
     pub(crate) fn init_memories(&mut self, memories: Vec<MemoryType>) -> Result<Vec<MemAddr>> {
-        let mem_count = self.data.memories.len();
+        let mem_count = self.memories.len();
         let mut mem_addrs = Vec::with_capacity(mem_count);
         for (i, mem) in memories.into_iter().enumerate() {
             if let MemoryArch::I64 = mem.arch {
                 return Err(Error::UnsupportedFeature("64-bit memories".to_string()));
             }
-            self.data.memories.push(RefCell::new(MemoryInstance::new(mem)));
+            self.memories.push(RefCell::new(MemoryInstance::new(mem)));
             mem_addrs.push((i + mem_count) as MemAddr);
         }
         Ok(mem_addrs)
@@ -171,13 +129,12 @@ impl Store {
         new_globals: Vec<Global>,
         func_addrs: &[FuncAddr],
     ) -> Result<Vec<Addr>> {
-        let global_count = self.data.globals.len();
+        let global_count = self.globals.len();
         imported_globals.reserve_exact(new_globals.len());
         let mut global_addrs = imported_globals;
 
         for (i, global) in new_globals.iter().enumerate() {
-            self.data
-                .globals
+            self.globals
                 .push(GlobalInstance::new(global.ty, self.eval_const(&global.init, &global_addrs, func_addrs)?));
             global_addrs.push((i + global_count) as Addr);
         }
@@ -197,7 +154,7 @@ impl Store {
                 let addr = globals.get(*addr as usize).copied().ok_or_else(|| {
                     Error::Other(format!("global {} not found. This should have been caught by the validator", addr))
                 })?;
-                let val: i64 = self.data.globals[addr as usize].value.get().into();
+                let val: i64 = self.globals[addr as usize].value.get().into();
 
                 // check if the global is actually a null reference
                 match val < 0 {
@@ -220,7 +177,7 @@ impl Store {
         global_addrs: &[Addr],
         elements: &[Element],
     ) -> Result<(Box<[Addr]>, Option<Trap>)> {
-        let elem_count = self.data.elements.len();
+        let elem_count = self.elements.len();
         let mut elem_addrs = Vec::with_capacity(elem_count);
         for (i, element) in elements.iter().enumerate() {
             let init = element
@@ -244,7 +201,7 @@ impl Store {
                         .copied()
                         .ok_or_else(|| Error::Other(format!("table {} not found for element {}", table, i)))?;
 
-                    let Some(table) = self.data.tables.get_mut(table_addr as usize) else {
+                    let Some(table) = self.tables.get_mut(table_addr as usize) else {
                         return Err(Error::Other(format!("table {} not found for element {}", table, i)));
                     };
 
@@ -262,7 +219,7 @@ impl Store {
                 }
             };
 
-            self.data.elements.push(ElementInstance::new(element.kind, items));
+            self.elements.push(ElementInstance::new(element.kind, items));
             elem_addrs.push((i + elem_count) as Addr);
         }
 
@@ -276,7 +233,7 @@ impl Store {
         mem_addrs: &[MemAddr],
         datas: Vec<Data>,
     ) -> Result<(Box<[Addr]>, Option<Trap>)> {
-        let data_count = self.data.datas.len();
+        let data_count = self.datas.len();
         let mut data_addrs = Vec::with_capacity(data_count);
         for (i, data) in datas.into_iter().enumerate() {
             let data_val = match data.kind {
@@ -291,7 +248,7 @@ impl Store {
                     };
 
                     let offset = self.eval_i32_const(&offset)?;
-                    let Some(mem) = self.data.memories.get_mut(*mem_addr as usize) else {
+                    let Some(mem) = self.memories.get_mut(*mem_addr as usize) else {
                         return Err(Error::Other(format!("memory {} not found for data segment {}", mem_addr, i)));
                     };
 
@@ -304,7 +261,7 @@ impl Store {
                 tinywasm_types::DataKind::Passive => Some(data.data.to_vec()),
             };
 
-            self.data.datas.push(DataInstance::new(data_val));
+            self.datas.push(DataInstance::new(data_val));
             data_addrs.push((i + data_count) as Addr);
         }
 
@@ -313,26 +270,26 @@ impl Store {
     }
 
     pub(crate) fn add_global(&mut self, ty: GlobalType, value: RawWasmValue) -> Result<Addr> {
-        self.data.globals.push(GlobalInstance::new(ty, value));
-        Ok(self.data.globals.len() as Addr - 1)
+        self.globals.push(GlobalInstance::new(ty, value));
+        Ok(self.globals.len() as Addr - 1)
     }
 
     pub(crate) fn add_table(&mut self, table: TableType) -> Result<TableAddr> {
-        self.data.tables.push(RefCell::new(TableInstance::new(table)));
-        Ok(self.data.tables.len() as TableAddr - 1)
+        self.tables.push(RefCell::new(TableInstance::new(table)));
+        Ok(self.tables.len() as TableAddr - 1)
     }
 
     pub(crate) fn add_mem(&mut self, mem: MemoryType) -> Result<MemAddr> {
         if let MemoryArch::I64 = mem.arch {
             return Err(Error::UnsupportedFeature("64-bit memories".to_string()));
         }
-        self.data.memories.push(RefCell::new(MemoryInstance::new(mem)));
-        Ok(self.data.memories.len() as MemAddr - 1)
+        self.memories.push(RefCell::new(MemoryInstance::new(mem)));
+        Ok(self.memories.len() as MemAddr - 1)
     }
 
     pub(crate) fn add_func(&mut self, func: Function) -> Result<FuncAddr> {
-        self.data.funcs.push(FunctionInstance { func });
-        Ok(self.data.funcs.len() as FuncAddr - 1)
+        self.funcs.push(FunctionInstance { func });
+        Ok(self.funcs.len() as FuncAddr - 1)
     }
 
     /// Evaluate a constant expression, only supporting i32 globals and i32.const
@@ -340,7 +297,7 @@ impl Store {
         use tinywasm_types::ConstInstruction::*;
         let val = match const_instr {
             I32Const(i) => *i,
-            GlobalGet(addr) => i32::from(self.data.globals[*addr as usize].value.get()),
+            GlobalGet(addr) => i32::from(self.globals[*addr as usize].value.get()),
             _ => return Err(Error::Other("expected i32".to_string())),
         };
         Ok(val)
@@ -364,8 +321,7 @@ impl Store {
                     Error::Other(format!("global {} not found. This should have been caught by the validator", addr))
                 })?;
 
-                let global =
-                    self.data.globals.get(*addr as usize).expect("global not found. This should be unreachable");
+                let global = self.globals.get(*addr as usize).expect("global not found. This should be unreachable");
                 global.value.get()
             }
             RefNull(t) => RawWasmValue::from(t.default_value()),

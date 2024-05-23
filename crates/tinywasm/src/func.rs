@@ -3,11 +3,13 @@ use alloc::{boxed::Box, format, string::String, string::ToString, vec, vec::Vec}
 use tinywasm_types::{FuncType, ValType, WasmValue};
 
 use crate::runtime::{CallFrame, Stack};
-use crate::{Error, FuncContext, Result, Store};
+use crate::{Error, FuncContext, Instance, Result};
 
 #[derive(Debug)]
 /// A function handle
-pub struct FuncHandle {
+pub struct FuncHandle<'i> {
+    pub(crate) instance: &'i mut Instance,
+
     pub(crate) addr: u32,
     pub(crate) ty: FuncType,
 
@@ -21,18 +23,12 @@ pub enum CallResult {
     Incomplete(Stack),
 }
 
-impl FuncHandle {
+impl<'m> FuncHandle<'m> {
     /// Call a function (Invocation)
     ///
     /// See <https://webassembly.github.io/spec/core/exec/modules.html#invocation>
     #[inline]
-    pub fn call(
-        &self,
-        store: &mut Store,
-        params: &[WasmValue],
-        stack: Option<Stack>,
-        max_cycles: usize,
-    ) -> Result<CallResult> {
+    pub fn call(&mut self, params: &[WasmValue], stack: Option<Stack>, max_cycles: usize) -> Result<CallResult> {
         // Comments are ordered by the steps in the spec
         // In this implementation, some steps are combined and ordered differently for performance reasons
 
@@ -53,11 +49,11 @@ impl FuncHandle {
             return Err(Error::Other("Type mismatch".into()));
         }
 
-        let func_inst = store.get_func(self.addr)?;
+        let func_inst = self.instance.store.get_func(self.addr)?;
         let wasm_func = match &func_inst.func {
             Function::Host(host_func) => {
                 let func = &host_func.clone().func;
-                let ctx = FuncContext { store };
+                let ctx = FuncContext { instance: self.instance };
                 return Ok(CallResult::Done((func)(ctx, params)?));
             }
             Function::Wasm(wasm_func) => wasm_func,
@@ -77,7 +73,7 @@ impl FuncHandle {
 
         // 9. Invoke the function instance
         let runtime = crate::runtime::interpreter::InterpreterRuntime {};
-        if !runtime.exec(store, &mut stack, max_cycles)? {
+        if !runtime.exec(self.instance, &mut stack, max_cycles)? {
             // panic!("{stack:?}");
             return Ok(CallResult::Incomplete(stack));
         }
@@ -98,9 +94,9 @@ impl FuncHandle {
 
 #[derive(Debug)]
 /// A typed function handle
-pub struct FuncHandleTyped<P, R> {
+pub struct FuncHandleTyped<'i, P, R> {
     /// The underlying function handle
-    pub func: FuncHandle,
+    pub func: FuncHandle<'i>,
     pub(crate) marker: core::marker::PhantomData<(P, R)>,
 }
 
@@ -120,20 +116,14 @@ pub enum CallResultOuter<R: FromWasmValueTuple> {
     Incomplete(Stack),
 }
 
-impl<P: IntoWasmValueTuple, R: FromWasmValueTuple> FuncHandleTyped<P, R> {
+impl<'i, P: IntoWasmValueTuple, R: FromWasmValueTuple> FuncHandleTyped<'i, P, R> {
     /// Call a typed function
-    pub fn call(
-        &self,
-        store: &mut Store,
-        params: P,
-        stack: Option<Stack>,
-        max_cycles: usize,
-    ) -> Result<CallResultOuter<R>> {
+    pub fn call(&mut self, params: P, stack: Option<Stack>, max_cycles: usize) -> Result<CallResultOuter<R>> {
         // Convert params into Vec<WasmValue>
         let wasm_values = params.into_wasm_value_tuple();
 
         // Call the underlying WASM function
-        let result = self.func.call(store, &wasm_values, stack, max_cycles)?;
+        let result = self.func.call(&wasm_values, stack, max_cycles)?;
 
         Ok(match result {
             CallResult::Done(values) => CallResultOuter::Done(R::from_wasm_value_tuple(&values)?),

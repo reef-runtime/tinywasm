@@ -50,35 +50,35 @@ pub(crate) type HostFuncInner = Box<dyn Fn(FuncContext<'_>, &[WasmValue]) -> Res
 
 /// The context of a host-function call
 #[derive(Debug)]
-pub struct FuncContext<'a> {
-    pub(crate) store: &'a mut crate::Store,
+pub struct FuncContext<'i> {
+    pub(crate) instance: &'i mut crate::instance::Instance,
 }
 
 impl FuncContext<'_> {
     /// Get a reference to the store
-    pub fn store(&self) -> &crate::Store {
-        self.store
-    }
+    // pub fn store(&self) -> &crate::Store {
+    //     self.store
+    // }
 
     /// Get a mutable reference to the store
-    pub fn store_mut(&mut self) -> &mut crate::Store {
-        self.store
-    }
+    // pub fn store_mut(&mut self) -> &mut crate::Store {
+    //     self.store
+    // }
 
     /// Get a reference to the module instance
-    pub fn module(&self) -> crate::ModuleInstance {
-        self.store.get_module_instance().unwrap().clone()
+    pub fn module(&self) -> &crate::Instance {
+        self.instance
     }
 
     /// Get a reference to an exported memory
     pub fn exported_memory(&mut self, name: &str) -> Result<crate::MemoryRef<'_>> {
-        self.module().exported_memory(self.store, name)
+        self.instance.exported_memory(name)
     }
 
-    /// Get a reference to an exported memory
-    pub fn exported_memory_mut(&mut self, name: &str) -> Result<crate::MemoryRefMut<'_>> {
-        self.module().exported_memory_mut(self.store, name)
-    }
+    // / Get a reference to an exported memory
+    // pub fn exported_memory_mut(&mut self, name: &str) -> Result<crate::MemoryRefMut<'_>> {
+    //     self.module().exported_memory_mut(self.store, name)
+    // }
 }
 
 impl Debug for HostFunction {
@@ -310,10 +310,14 @@ impl Imports {
         Ok(())
     }
 
-    pub(crate) fn link(mut self, store: &mut crate::Store, module: &crate::Module) -> Result<ResolvedImports> {
+    pub(crate) fn link(
+        mut self,
+        store: &mut crate::store::Store,
+        module: &tinywasm_types::Module,
+    ) -> Result<ResolvedImports> {
         let mut imports = ResolvedImports::new();
 
-        for import in module.data.imports.iter() {
+        for import in module.imports.iter() {
             let val = self.take(import).ok_or_else(|| LinkingError::unknown_import(import))?;
 
             // A link to something that needs to be added to the store
@@ -332,7 +336,6 @@ impl Imports {
                 }
                 (Extern::Function(extern_func), ImportKind::Function(ty)) => {
                     let import_func_type = module
-                        .data
                         .func_types
                         .get(*ty as usize)
                         .ok_or_else(|| LinkingError::incompatible_import_type(import))?;

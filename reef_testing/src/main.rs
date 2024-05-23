@@ -4,7 +4,7 @@ use std::str::FromStr;
 use argh::FromArgs;
 // use args::WasmArg;
 use color_eyre::eyre::Result;
-use tinywasm::CallResultOuter;
+use tinywasm::{CallResultOuter, Instance};
 use tinywasm::{Extern, FuncContext, MemoryStringExt};
 use tinywasm::{Imports, Module};
 
@@ -71,7 +71,7 @@ fn main() -> Result<()> {
             let path = cwd.join(wasm_file.clone());
             let module = match wasm_file.ends_with(".wat") {
                 true => return Err(color_eyre::eyre::eyre!("wat support is not enabled in this build")),
-                false => tinywasm::Module::parse_file(path)?,
+                false => tinywasm::parse_bytes(&std::fs::read(path)?)?,
             };
 
             run(module)
@@ -80,7 +80,7 @@ fn main() -> Result<()> {
 }
 
 fn run(module: Module) -> Result<()> {
-    let mut store = tinywasm::Store::default();
+    // let mut store = tinywasm::Store::default();
 
     let mut imports = Imports::new();
 
@@ -146,9 +146,9 @@ fn run(module: Module) -> Result<()> {
 
     let entry_fn_name = "reef_main";
 
-    let instance = module.instantiate(&mut store, Some(imports), max_cycles)?;
-    let main_fn = instance.exported_func::<(), i32>(&store, entry_fn_name).unwrap();
-    println!("{main_fn:?}");
+    let mut instance = Instance::instantiate_start(module, imports, max_cycles)?;
+    let mut main_fn = instance.exported_func::<(), i32>(entry_fn_name).unwrap();
+    // println!("{main_fn:?}");
 
     let mut stack = None;
 
@@ -157,7 +157,7 @@ fn run(module: Module) -> Result<()> {
     loop {
         cycles += 1;
 
-        let call_res = main_fn.call(&mut store, (), stack, max_cycles).unwrap();
+        let call_res = main_fn.call((), stack, max_cycles).unwrap();
 
         match call_res {
             CallResultOuter::Done(res) => {

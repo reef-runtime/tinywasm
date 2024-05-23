@@ -23,7 +23,7 @@ use module::ModuleReader;
 use tinywasm_types::WasmFunction;
 use wasmparser::{Validator, WasmFeaturesInflated};
 
-pub use tinywasm_types::TinyWasmModule;
+pub use tinywasm_types::Module;
 
 /// A WebAssembly parser
 #[derive(Default, Debug)]
@@ -66,7 +66,7 @@ impl Parser {
     }
 
     /// Parse a [`TinyWasmModule`] from bytes
-    pub fn parse_module_bytes(&self, wasm: impl AsRef<[u8]>) -> Result<TinyWasmModule> {
+    pub fn parse_module_bytes(&self, wasm: impl AsRef<[u8]>) -> Result<Module> {
         let wasm = wasm.as_ref();
         let mut validator = self.create_validator();
         let mut reader = ModuleReader::new();
@@ -84,7 +84,7 @@ impl Parser {
 
     #[cfg(feature = "std")]
     /// Parse a [`TinyWasmModule`] from a file. Requires `std` feature.
-    pub fn parse_module_file(&self, path: impl AsRef<crate::std::path::Path> + Clone) -> Result<TinyWasmModule> {
+    pub fn parse_module_file(&self, path: impl AsRef<crate::std::path::Path> + Clone) -> Result<Module> {
         use alloc::format;
         let f = crate::std::fs::File::open(path.clone())
             .map_err(|e| ParseError::Other(format!("Error opening file {:?}: {}", path.as_ref(), e)))?;
@@ -95,7 +95,7 @@ impl Parser {
 
     #[cfg(feature = "std")]
     /// Parse a [`TinyWasmModule`] from a stream. Requires `std` feature.
-    pub fn parse_module_stream(&self, mut stream: impl std::io::Read) -> Result<TinyWasmModule> {
+    pub fn parse_module_stream(&self, mut stream: impl std::io::Read) -> Result<Module> {
         use alloc::format;
 
         let mut validator = self.create_validator();
@@ -127,7 +127,7 @@ impl Parser {
     }
 }
 
-impl TryFrom<ModuleReader> for TinyWasmModule {
+impl TryFrom<ModuleReader> for Module {
     type Error = ParseError;
 
     fn try_from(reader: ModuleReader) -> Result<Self> {
@@ -156,7 +156,7 @@ impl TryFrom<ModuleReader> for TinyWasmModule {
         let globals = reader.globals;
         let table_types = reader.table_types;
 
-        Ok(TinyWasmModule {
+        Ok(Module {
             funcs: funcs.into_boxed_slice(),
             func_types: reader.func_types.into_boxed_slice(),
             globals: globals.into_boxed_slice(),

@@ -27,7 +27,7 @@ pub mod archive;
 /// This means you should not trust a TinyWasmModule created by a third party to be valid.
 #[derive(Debug, Clone, Default, PartialEq)]
 #[cfg_attr(feature = "archive", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize), archive(check_bytes))]
-pub struct TinyWasmModule {
+pub struct Module {
     /// Optional address of the start function
     ///
     /// Corresponds to the `start` section of the original WebAssembly module.

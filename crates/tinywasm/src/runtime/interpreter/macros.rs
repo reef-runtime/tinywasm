@@ -23,20 +23,19 @@ macro_rules! break_to {
 
 /// Load a value from memory
 macro_rules! mem_load {
-    ($type:ty, $arg:expr, $stack:ident, $store:ident, $module:ident) => {{
-        mem_load!($type, $type, $arg, $stack, $store, $module)
+    ($type:ty, $arg:expr, $stack:ident, $module:ident) => {{
+        mem_load!($type, $type, $arg, $stack, $module)
     }};
 
-    ($load_type:ty, $target_type:ty, $arg:expr, $stack:ident, $store:ident, $module:ident) => {{
+    ($load_type:ty, $target_type:ty, $arg:expr, $stack:ident, $module:ident) => {{
         #[inline(always)]
         fn mem_load_inner(
-            store: &Store,
-            module: &crate::ModuleInstance,
+            module: &crate::Instance,
             stack: &mut crate::runtime::Stack,
             mem_addr: tinywasm_types::MemAddr,
             offset: u64,
         ) -> Result<()> {
-            let mem = store.get_mem(module.resolve_mem_addr(mem_addr))?;
+            let mem = module.store.get_mem(module.resolve_mem_addr(mem_addr))?;
             let addr: usize = match offset.checked_add(stack.values.pop()?.into()).map(|a| a.try_into()) {
                 Some(Ok(a)) => a,
                 _ => {
@@ -56,26 +55,25 @@ macro_rules! mem_load {
         }
 
         let (mem_addr, offset) = $arg;
-        mem_load_inner($store, &$module, $stack, *mem_addr, *offset)?;
+        mem_load_inner(&$module, $stack, *mem_addr, *offset)?;
     }};
 }
 
 /// Store a value to memory
 macro_rules! mem_store {
-    ($type:ty, $arg:expr, $stack:ident, $store:ident, $module:ident) => {{
-        mem_store!($type, $type, $arg, $stack, $store, $module)
+    ($type:ty, $arg:expr, $stack:ident, $module:ident) => {{
+        mem_store!($type, $type, $arg, $stack, $module)
     }};
 
-    ($store_type:ty, $target_type:ty, $arg:expr, $stack:ident, $store:ident, $module:ident) => {{
+    ($store_type:ty, $target_type:ty, $arg:expr, $stack:ident, $module:ident) => {{
         #[inline(always)]
         fn mem_store_inner(
-            store: &Store,
-            module: &crate::ModuleInstance,
+            module: &crate::Instance,
             stack: &mut crate::runtime::Stack,
             mem_addr: tinywasm_types::MemAddr,
             offset: u64,
         ) -> Result<()> {
-            let mem = store.get_mem(module.resolve_mem_addr(mem_addr))?;
+            let mem = module.store.get_mem(module.resolve_mem_addr(mem_addr))?;
             let val: $store_type = stack.values.pop()?.into();
             let val = val.to_le_bytes();
             let addr: u64 = stack.values.pop()?.into();
@@ -84,7 +82,7 @@ macro_rules! mem_store {
         }
 
         let (mem_addr, offset) = $arg;
-        mem_store_inner($store, &$module, $stack, *mem_addr, *offset)?;
+        mem_store_inner(&$module, $stack, *mem_addr, *offset)?;
     }};
 }
 

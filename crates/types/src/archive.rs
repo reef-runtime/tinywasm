@@ -1,6 +1,6 @@
 use core::fmt::{Display, Formatter};
 
-use crate::TinyWasmModule;
+use crate::Module;
 use rkyv::{
     check_archived_root,
     ser::{serializers::AllocSerializer, Serializer},
@@ -53,9 +53,9 @@ extern crate std;
 #[cfg(feature = "std")]
 impl std::error::Error for TwasmError {}
 
-impl TinyWasmModule {
+impl Module {
     /// Creates a TinyWasmModule from a slice of bytes.
-    pub fn from_twasm(wasm: &[u8]) -> Result<TinyWasmModule, TwasmError> {
+    pub fn from_twasm(wasm: &[u8]) -> Result<Module, TwasmError> {
         let len = validate_magic(wasm)?;
         let root = check_archived_root::<Self>(&wasm[len..]).map_err(|_e| TwasmError::InvalidArchive)?;
 
@@ -81,9 +81,9 @@ mod tests {
 
     #[test]
     fn test_serialize() {
-        let wasm = TinyWasmModule::default();
+        let wasm = Module::default();
         let twasm = wasm.serialize_twasm();
-        let wasm2 = TinyWasmModule::from_twasm(&twasm).unwrap();
+        let wasm2 = Module::from_twasm(&twasm).unwrap();
         assert_eq!(wasm, wasm2);
     }
 }

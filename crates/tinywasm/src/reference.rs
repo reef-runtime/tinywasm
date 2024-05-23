@@ -5,21 +5,21 @@ use alloc::ffi::CString;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
-use crate::{GlobalInstance, MemoryInstance, Result};
+use crate::{store::GlobalInstance, store::MemoryInstance, Result};
 use tinywasm_types::WasmValue;
 
 // This module essentially contains the public APIs to interact with the data stored in the store
 
 /// A reference to a memory instance
 #[derive(Debug)]
-pub struct MemoryRef<'a> {
-    pub(crate) instance: Ref<'a, MemoryInstance>,
+pub struct MemoryRef<'m> {
+    pub(crate) instance: Ref<'m, MemoryInstance>,
 }
 
 /// A borrowed reference to a memory instance
 #[derive(Debug)]
-pub struct MemoryRefMut<'a> {
-    pub(crate) instance: RefMut<'a, MemoryInstance>,
+pub struct MemoryRefMut<'m> {
+    pub(crate) instance: RefMut<'m, MemoryInstance>,
 }
 
 impl<'a> MemoryRefLoad for MemoryRef<'a> {

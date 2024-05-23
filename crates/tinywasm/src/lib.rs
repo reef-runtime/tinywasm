@@ -78,10 +78,10 @@ pub use error::*;
 // pub use func::{FuncHandle, FuncHandleTyped};
 pub use func::*;
 pub use imports::*;
-pub use instance::ModuleInstance;
-pub use module::Module;
+pub use instance::Instance;
+pub use module::parse_bytes;
 pub use reference::*;
-pub use store::*;
+pub use tinywasm_types::Module;
 
 mod func;
 mod imports;

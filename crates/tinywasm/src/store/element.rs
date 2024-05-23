@@ -1,4 +1,4 @@
-use crate::TableElement;
+use crate::store::TableElement;
 use alloc::vec::Vec;
 use tinywasm_types::*;
 
