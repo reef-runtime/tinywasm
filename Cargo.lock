@@ -671,18 +671,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tinywasm-cli"
-version = "0.7.0"
-dependencies = [
- "argh",
- "color-eyre",
- "log",
- "pretty_env_logger",
- "tinywasm",
- "wast 208.0.1",
-]
-
-[[package]]
 name = "tinywasm-parser"
 version = "0.7.0"
 dependencies = [
