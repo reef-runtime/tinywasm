@@ -19,7 +19,6 @@ tinywasm-types={version="0.7.0", path="../types", default-features=false}
 libm={version="0.2", default-features=false}
 
 [dev-dependencies]
-wasm-testsuite={path="../wasm-testsuite"}
 wast={version="208.0"}
 owo-colors={version="4.0"}
 eyre={version="0.6"}
