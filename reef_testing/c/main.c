@@ -13,12 +13,15 @@ int reef_strlen(char *ptr) {
   return len;
 }
 
-int main() {
+int reef_main() {
   char *msg = "Hello World!";
   int len = reef_strlen(msg);
 
   reef_log(msg, len);
   // print_dummy(msg, len);
+  //
+  return 42;
 }
 
-void _start() { main(); }
+// ENTRYPOINT considered harmful
+// void _start() { main(); }

@@ -4,6 +4,7 @@ use std::str::FromStr;
 use argh::FromArgs;
 // use args::WasmArg;
 use color_eyre::eyre::Result;
+use tinywasm::CallResultOuter;
 use tinywasm::{Extern, FuncContext, MemoryStringExt};
 use tinywasm::{Imports, Module};
 
@@ -143,7 +144,30 @@ fn run(module: Module) -> Result<()> {
 
     let max_cycles = 10;
 
-    let _instance = module.instantiate(&mut store, Some(imports), max_cycles)?;
+    let entry_fn_name = "reef_main";
+
+    let instance = module.instantiate(&mut store, Some(imports), max_cycles)?;
+    let main_fn = instance.exported_func::<(), i32>(&store, entry_fn_name).unwrap();
+    println!("{main_fn:?}");
+
+    let mut stack = None;
+
+    loop {
+        let call_res = main_fn.call(&mut store, (), stack, max_cycles).unwrap();
+
+        match call_res {
+            CallResultOuter::Done(res) => {
+                println!("finished: {res:?}");
+                break;
+            }
+            CallResultOuter::Incomplete(new_stack) => {
+                println!("incomplete execution: {new_stack:?}");
+                stack = Some(new_stack);
+            },
+        }
+
+        // println!("{:?}", call_res.unwrap());
+    }
 
     // if let Some(func) = func {
     //     let func = instance.exported_func_untyped(&store, &func)?;

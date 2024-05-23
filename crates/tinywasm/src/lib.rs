@@ -4,7 +4,7 @@
     attr(deny(warnings, rust_2018_idioms), allow(dead_code, unused_assignments, unused_variables))
 ))]
 #![allow(unexpected_cfgs, clippy::reserve_after_initialization)]
-#![warn(missing_docs, missing_debug_implementations, rust_2018_idioms, unreachable_pub)]
+// #![warn(missing_docs, missing_debug_implementations, rust_2018_idioms, unreachable_pub)]
 #![cfg_attr(nightly, feature(error_in_core))]
 #![forbid(unsafe_code)]
 
@@ -75,12 +75,13 @@ extern crate alloc;
 
 mod error;
 pub use error::*;
-pub use func::{FuncHandle, FuncHandleTyped};
+// pub use func::{FuncHandle, FuncHandleTyped};
 pub use imports::*;
 pub use instance::ModuleInstance;
 pub use module::Module;
 pub use reference::*;
 pub use store::*;
+pub use func::*;
 
 mod func;
 mod imports;

@@ -1,3 +1,5 @@
+use core::panic;
+
 use crate::{runtime::RawWasmValue, unlikely, Function};
 use alloc::{boxed::Box, format, string::String, string::ToString, vec, vec::Vec};
 use tinywasm_types::{FuncType, ModuleInstanceAddr, ValType, WasmValue};
@@ -19,7 +21,7 @@ pub struct FuncHandle {
 #[derive(Debug)]
 pub enum CallResult {
     Done(Vec<WasmValue>),
-    Incomplete(Stack)
+    Incomplete(Stack),
 }
 
 impl FuncHandle {
@@ -27,7 +29,13 @@ impl FuncHandle {
     ///
     /// See <https://webassembly.github.io/spec/core/exec/modules.html#invocation>
     #[inline]
-    pub fn call(&self, store: &mut Store, params: &[WasmValue], stack: Option<Stack>, max_cycles: usize) -> Result<CallResult> {
+    pub fn call(
+        &self,
+        store: &mut Store,
+        params: &[WasmValue],
+        stack: Option<Stack>,
+        max_cycles: usize,
+    ) -> Result<CallResult> {
         // Comments are ordered by the steps in the spec
         // In this implementation, some steps are combined and ordered differently for performance reasons
 
@@ -44,11 +52,7 @@ impl FuncHandle {
         }
 
         // 5. For each value type and the corresponding value, check if types match
-        if !(func_ty.params.iter().zip(params).all(
-            |(ty, param)| {
-                ty == &param.val_type()
-            },
-        )) {
+        if !(func_ty.params.iter().zip(params).all(|(ty, param)| ty == &param.val_type())) {
             return Err(Error::Other("Type mismatch".into()));
         }
 
@@ -57,25 +61,30 @@ impl FuncHandle {
             Function::Host(host_func) => {
                 let func = &host_func.clone().func;
                 let ctx = FuncContext { store, module_addr: self.module_addr };
-                return Ok(CallResult::Done((func)(ctx, params)?))
+                return Ok(CallResult::Done((func)(ctx, params)?));
             }
             Function::Wasm(wasm_func) => wasm_func,
         };
 
-        // 6. Let f be the dummy frame
-        let call_frame_params = params.iter().map(|v| RawWasmValue::from(*v));
-        let call_frame = CallFrame::new(wasm_func.clone(), func_inst.owner, call_frame_params, 0);
-
-        // 7. Push the frame f to the call stack
-        // & 8. Push the values to the stack (Not needed since the call frame owns the values)
         let mut stack = match stack {
-            None => Stack::new(call_frame),
+            None => {
+                // 6. Let f be the dummy frame
+                // 7. Push the frame f to the call stack
+                // & 8. Push the values to the stack (Not needed since the call frame owns the values)
+                let call_frame_params = params.iter().map(|v| RawWasmValue::from(*v));
+                let call_frame = CallFrame::new(wasm_func.clone(), func_inst.owner, call_frame_params, 0);
+                Stack::new(call_frame)
+            }
             Some(old_stack) => old_stack,
         };
 
         // 9. Invoke the function instance
         let runtime = store.runtime();
-        runtime.exec(store, &mut stack, max_cycles)?;
+        if !runtime.exec(store, &mut stack, max_cycles)? {
+            return Ok(CallResult::Incomplete(stack));
+        }
+
+        panic!("{stack:?}");
 
         // Once the function returns:
         let result_m = func_ty.results.len();
@@ -109,6 +118,7 @@ pub trait FromWasmValueTuple {
         Self: Sized;
 }
 
+#[derive(Debug)]
 pub enum CallResultOuter<R: FromWasmValueTuple> {
     Done(R),
     Incomplete(Stack),
@@ -116,7 +126,13 @@ pub enum CallResultOuter<R: FromWasmValueTuple> {
 
 impl<P: IntoWasmValueTuple, R: FromWasmValueTuple> FuncHandleTyped<P, R> {
     /// Call a typed function
-    pub fn call(&self, store: &mut Store, params: P, stack: Option<Stack>, max_cycles: usize) -> Result<CallResultOuter<R>> {
+    pub fn call(
+        &self,
+        store: &mut Store,
+        params: P,
+        stack: Option<Stack>,
+        max_cycles: usize,
+    ) -> Result<CallResultOuter<R>> {
         // Convert params into Vec<WasmValue>
         let wasm_values = params.into_wasm_value_tuple();
 
