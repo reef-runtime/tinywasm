@@ -3,7 +3,7 @@ use core::cell::RefCell;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use tinywasm_types::*;
 
-use crate::runtime::{self, InterpreterRuntime, RawWasmValue};
+use crate::runtime::RawWasmValue;
 use crate::{Error, Function, ModuleInstance, Result, Trap};
 
 mod data;
@@ -33,12 +33,6 @@ pub struct Store {
     module_instances: Vec<ModuleInstance>,
 
     pub(crate) data: StoreData,
-    pub(crate) runtime: Runtime,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum Runtime {
-    Default,
 }
 
 impl Store {
@@ -55,13 +49,6 @@ impl Store {
     pub(crate) fn get_module_instance_raw(&self, addr: ModuleInstanceAddr) -> ModuleInstance {
         self.module_instances[addr as usize].clone()
     }
-
-    /// Create a new store with the given runtime
-    pub(crate) fn runtime(&self) -> runtime::InterpreterRuntime {
-        match self.runtime {
-            Runtime::Default => InterpreterRuntime::default(),
-        }
-    }
 }
 
 impl PartialEq for Store {
@@ -73,7 +60,7 @@ impl PartialEq for Store {
 impl Default for Store {
     fn default() -> Self {
         let id = STORE_ID.fetch_add(1, Ordering::Relaxed);
-        Self { id, module_instances: Vec::new(), data: StoreData::default(), runtime: Runtime::Default }
+        Self { id, module_instances: Vec::new(), data: StoreData::default() }
     }
 }
 

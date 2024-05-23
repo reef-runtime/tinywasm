@@ -3,7 +3,7 @@ use alloc::string::ToString;
 use core::ops::{BitAnd, BitOr, BitXor, Neg};
 use tinywasm_types::{BlockArgs, ElementKind, ValType};
 
-use super::{InterpreterRuntime, RawWasmValue, Stack};
+use super::{RawWasmValue, Stack};
 use crate::runtime::{BlockFrame, BlockType, CallFrame};
 use crate::{cold, unlikely, ModuleInstance};
 use crate::{Error, FuncContext, Result, Store, Trap};
@@ -18,6 +18,10 @@ mod no_std_floats;
 #[cfg(not(feature = "std"))]
 #[allow(unused_imports)]
 use no_std_floats::NoStdFloatExt;
+
+/// The TinyWasm runtime.
+#[derive(Debug, Default)]
+pub struct InterpreterRuntime {}
 
 impl InterpreterRuntime {
     pub(crate) fn exec(&self, store: &mut Store, stack: &mut Stack, max_cycles: usize) -> Result<bool> {

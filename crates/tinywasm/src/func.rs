@@ -1,5 +1,3 @@
-use core::panic;
-
 use crate::{runtime::RawWasmValue, unlikely, Function};
 use alloc::{boxed::Box, format, string::String, string::ToString, vec, vec::Vec};
 use tinywasm_types::{FuncType, ModuleInstanceAddr, ValType, WasmValue};
@@ -79,7 +77,7 @@ impl FuncHandle {
         };
 
         // 9. Invoke the function instance
-        let runtime = store.runtime();
+        let runtime = crate::runtime::interpreter::InterpreterRuntime {};
         if !runtime.exec(store, &mut stack, max_cycles)? {
             // panic!("{stack:?}");
             return Ok(CallResult::Incomplete(stack));

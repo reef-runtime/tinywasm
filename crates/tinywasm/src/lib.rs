@@ -76,12 +76,12 @@ extern crate alloc;
 mod error;
 pub use error::*;
 // pub use func::{FuncHandle, FuncHandleTyped};
+pub use func::*;
 pub use imports::*;
 pub use instance::ModuleInstance;
 pub use module::Module;
 pub use reference::*;
 pub use store::*;
-pub use func::*;
 
 mod func;
 mod imports;
@@ -92,7 +92,6 @@ mod store;
 
 /// Runtime for executing WebAssembly modules.
 pub mod runtime;
-pub use runtime::InterpreterRuntime;
 
 #[cfg(feature = "parser")]
 /// Re-export of [`tinywasm_parser`]. Requires `parser` feature.
