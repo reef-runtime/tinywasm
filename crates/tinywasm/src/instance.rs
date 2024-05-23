@@ -185,13 +185,13 @@ impl Instance {
     }
 
     /// Get a memory by address
-    pub fn memory<'i>(&'i self, addr: MemAddr) -> Result<MemoryRef<'i>> {
+    pub fn memory(&self, addr: MemAddr) -> Result<MemoryRef<'_>> {
         let mem = self.store.get_mem(self.resolve_mem_addr(addr))?;
         Ok(MemoryRef { instance: mem.borrow() })
     }
 
     /// Get a memory by address (mutable)
-    pub fn memory_mut<'i>(&'i mut self, addr: MemAddr) -> Result<MemoryRefMut<'i>> {
+    pub fn memory_mut(&mut self, addr: MemAddr) -> Result<MemoryRefMut<'_>> {
         let mem = self.store.get_mem(self.resolve_mem_addr(addr))?;
         Ok(MemoryRefMut { instance: mem.borrow_mut() })
     }
@@ -202,7 +202,7 @@ impl Instance {
     /// If no start function is specified, also checks for a _start function in the exports
     ///
     /// See <https://webassembly.github.io/spec/core/syntax/modules.html#start-function>
-    pub fn start_func<'i>(&'i mut self) -> Result<Option<FuncHandle<'i>>> {
+    pub fn start_func(&mut self) -> Result<Option<FuncHandle<'_>>> {
         let func_index = match self.module.start_func {
             Some(func_index) => func_index,
             None => {

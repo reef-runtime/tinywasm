@@ -24,7 +24,7 @@ use no_std_floats::NoStdFloatExt;
 pub struct InterpreterRuntime {}
 
 impl InterpreterRuntime {
-    pub(crate) fn exec(&self, mut instance: &mut Instance, stack: &mut Stack, max_cycles: usize) -> Result<bool> {
+    pub(crate) fn exec(&self, instance: &mut Instance, stack: &mut Stack, max_cycles: usize) -> Result<bool> {
         let mut cf = stack.call_stack.pop()?;
         // let mut instance = store.get_module_instance().unwrap().clone();
 
@@ -41,13 +41,13 @@ impl InterpreterRuntime {
                 Drop => stack.values.pop().map(|_| ())?,
                 Select(_valtype) => self.exec_select(stack)?,
 
-                Call(v) => skip!(self.exec_call(*v, stack, &mut cf, &mut instance)),
+                Call(v) => skip!(self.exec_call(*v, stack, &mut cf, instance)),
                 CallIndirect(ty, table) => {
-                    skip!(self.exec_call_indirect(*ty, *table, stack, &mut cf, &mut instance))
+                    skip!(self.exec_call_indirect(*ty, *table, stack, &mut cf, instance))
                 }
-                If(args, el, end) => skip!(self.exec_if((*args).into(), *el, *end, stack, &mut cf, &mut instance)),
-                Loop(args, end) => self.enter_block(stack, cf.instr_ptr, *end, BlockType::Loop, args, &instance),
-                Block(args, end) => self.enter_block(stack, cf.instr_ptr, *end, BlockType::Block, args, &instance),
+                If(args, el, end) => skip!(self.exec_if((*args).into(), *el, *end, stack, &mut cf, instance)),
+                Loop(args, end) => self.enter_block(stack, cf.instr_ptr, *end, BlockType::Loop, args, instance),
+                Block(args, end) => self.enter_block(stack, cf.instr_ptr, *end, BlockType::Block, args, instance),
 
                 Br(v) => break_to!(cf, stack, module, store, v),
                 BrIf(v) => {
@@ -102,8 +102,8 @@ impl InterpreterRuntime {
 
                 // Bulk memory operations
                 MemoryCopy(from, to) => self.exec_memory_copy(*from, *to, stack, instance)?,
-                MemoryFill(addr) => self.exec_memory_fill(*addr, stack, &instance)?,
-                MemoryInit(data_idx, mem_idx) => self.exec_memory_init(*data_idx, *mem_idx, stack, &instance)?,
+                MemoryFill(addr) => self.exec_memory_fill(*addr, stack, instance)?,
+                MemoryInit(data_idx, mem_idx) => self.exec_memory_init(*data_idx, *mem_idx, stack, instance)?,
                 DataDrop(data_index) => instance.store.get_data_mut(instance.resolve_data_addr(*data_index))?.drop(),
 
                 I32Store { mem_addr, offset } => mem_store!(i32, (mem_addr, offset), stack, instance),
@@ -279,10 +279,10 @@ impl InterpreterRuntime {
                 I64TruncF32U => checked_conv_float!(f32, u64, i64, stack),
                 I64TruncF64U => checked_conv_float!(f64, u64, i64, stack),
 
-                TableGet(table_idx) => self.exec_table_get(*table_idx, stack, &instance)?,
-                TableSet(table_idx) => self.exec_table_set(*table_idx, stack, &instance)?,
-                TableSize(table_idx) => self.exec_table_size(*table_idx, stack, &instance)?,
-                TableInit(table_idx, elem_idx) => self.exec_table_init(*elem_idx, *table_idx, &instance)?,
+                TableGet(table_idx) => self.exec_table_get(*table_idx, stack, instance)?,
+                TableSet(table_idx) => self.exec_table_set(*table_idx, stack, instance)?,
+                TableSize(table_idx) => self.exec_table_size(*table_idx, stack, instance)?,
+                TableInit(table_idx, elem_idx) => self.exec_table_init(*elem_idx, *table_idx, instance)?,
 
                 I32TruncSatF32S => arithmetic_single!(trunc, f32, i32, stack),
                 I32TruncSatF32U => arithmetic_single!(trunc, f32, u32, stack),
@@ -301,7 +301,7 @@ impl InterpreterRuntime {
                 I64XorConstRotl(rotate_by) => self.exec_i64_xor_const_rotl(*rotate_by, stack)?,
                 I32LocalGetConstAdd(local, val) => self.exec_i32_local_get_const_add(*local, *val, stack, &cf),
                 I32StoreLocal { local, const_i32: consti32, offset, mem_addr } => {
-                    self.exec_i32_store_local(*local, *consti32, *offset, *mem_addr, &cf, &instance)?
+                    self.exec_i32_store_local(*local, *consti32, *offset, *mem_addr, &cf, instance)?
                 }
                 i => {
                     cold();
