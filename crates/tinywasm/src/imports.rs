@@ -6,7 +6,7 @@ use alloc::vec::Vec;
 use core::fmt::Debug;
 
 use crate::func::{FromWasmValueTuple, IntoWasmValueTuple, ValTypesFromTuple};
-use crate::{log, LinkingError, Result};
+use crate::{LinkingError, Result};
 use tinywasm_types::*;
 
 /// The internal representation of a function
@@ -191,7 +191,6 @@ impl From<&Import> for ExternName {
 ///
 /// ## Example
 /// ```rust
-/// # use _log as log;
 /// # fn main() -> tinywasm::Result<()> {
 /// use tinywasm::{Imports, Extern};
 /// use tinywasm::types::{ValType, TableType, MemoryType, WasmValue};
@@ -200,7 +199,6 @@ impl From<&Import> for ExternName {
 /// // function args can be either a single
 /// // value that implements `TryFrom<WasmValue>` or a tuple of them
 /// let print_i32 = Extern::typed_func(|_ctx: tinywasm::FuncContext<'_>, arg: i32| {
-///     log::debug!("print_i32: {}", arg);
 ///     Ok(())
 /// });
 ///
@@ -289,7 +287,6 @@ impl Imports {
 
     fn compare_types<T: Debug + PartialEq>(import: &Import, actual: &T, expected: &T) -> Result<()> {
         if expected != actual {
-            log::error!("failed to link import {}, expected {:?}, got {:?}", import.name, expected, actual);
             return Err(LinkingError::incompatible_import_type(import).into());
         }
         Ok(())

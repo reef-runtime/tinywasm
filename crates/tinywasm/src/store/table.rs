@@ -1,4 +1,4 @@
-use crate::{log, unlikely};
+use crate::unlikely;
 use crate::{Error, Result, Trap};
 use alloc::{vec, vec::Vec};
 use tinywasm_types::*;
@@ -76,7 +76,6 @@ impl TableInstance {
         }
 
         self.elements[offset..end].copy_from_slice(init);
-        log::debug!("table: {:?}", self.elements);
         Ok(())
     }
 

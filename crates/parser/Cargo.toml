@@ -1,19 +1,19 @@
 [package]
-name="tinywasm-parser"
-version.workspace=true
-description="TinyWasm parser"
-edition.workspace=true
-license.workspace=true
-authors.workspace=true
-repository.workspace=true
+name = "tinywasm-parser"
+version.workspace = true
+description = "TinyWasm parser"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
 
 [dependencies]
-wasmparser={version="0.208", default-features=false, features=["validate"]}
-log={version="0.4", optional=true}
-tinywasm-types={version="0.7.0", path="../types", default-features=false}
+wasmparser = { version = "0.208", default-features = false, features = [
+    "validate",
+] }
+tinywasm-types = { version = "0.7.0", path = "../types", default-features = false }
 
 [features]
-default=["std", "logging"]
-logging=["log"]
-std=["tinywasm-types/std", "wasmparser/std"]
-nightly=[]
+default = []
+std = ["tinywasm-types/std", "wasmparser/std"]
+nightly = []

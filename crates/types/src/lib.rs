@@ -12,18 +12,6 @@ extern crate alloc;
 use alloc::boxed::Box;
 use core::{fmt::Debug, ops::Range};
 
-// log for logging (optional).
-#[cfg(feature = "logging")]
-#[allow(clippy::single_component_path_imports)]
-use log;
-
-#[cfg(not(feature = "logging"))]
-#[macro_use]
-pub(crate) mod log {
-    macro_rules! error    ( ($($tt:tt)*) => {{}} );
-    pub(crate) use error;
-}
-
 mod instructions;
 mod value;
 pub use instructions::*;

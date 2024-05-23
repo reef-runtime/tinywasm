@@ -17,8 +17,6 @@
 //! ## Features
 //!- **`std`**\
 //!  Enables the use of `std` and `std::io` for parsing from files and streams. This is enabled by default.
-//!- **`logging`**\
-//!  Enables logging using the `log` crate. This is enabled by default.
 //!- **`parser`**\
 //!  Enables the `tinywasm-parser` crate. This is enabled by default.
 //!- **`archive`**\
@@ -74,22 +72,6 @@
 
 mod std;
 extern crate alloc;
-
-// log for logging (optional).
-#[cfg(feature = "logging")]
-#[allow(clippy::single_component_path_imports)]
-use _log as log;
-
-// noop fallback if logging is disabled.
-#[cfg(not(feature = "logging"))]
-pub(crate) mod log {
-    macro_rules! debug    ( ($($tt:tt)*) => {{}} );
-    macro_rules! info    ( ($($tt:tt)*) => {{}} );
-    macro_rules! error    ( ($($tt:tt)*) => {{}} );
-    pub(crate) use debug;
-    pub(crate) use error;
-    pub(crate) use info;
-}
 
 mod error;
 pub use error::*;

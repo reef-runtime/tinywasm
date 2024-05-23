@@ -2,7 +2,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 use tinywasm_types::{MemoryType, ModuleInstanceAddr};
 
-use crate::{log, Error, Result};
+use crate::{Error, Result};
 
 const PAGE_SIZE: usize = 65536;
 const MAX_PAGES: usize = 65536;
@@ -22,7 +22,6 @@ pub(crate) struct MemoryInstance {
 impl MemoryInstance {
     pub(crate) fn new(kind: MemoryType, owner: ModuleInstanceAddr) -> Self {
         assert!(kind.page_count_initial <= kind.page_count_max.unwrap_or(MAX_PAGES as u64));
-        log::debug!("initializing memory with {} pages", kind.page_count_initial);
 
         Self {
             kind,
