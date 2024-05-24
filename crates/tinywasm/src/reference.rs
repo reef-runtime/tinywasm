@@ -1,4 +1,3 @@
-use core::cell::{Ref, RefCell, RefMut};
 use core::ffi::CStr;
 
 use alloc::ffi::CString;
@@ -13,13 +12,13 @@ use tinywasm_types::WasmValue;
 /// A reference to a memory instance
 #[derive(Debug)]
 pub struct MemoryRef<'m> {
-    pub(crate) instance: Ref<'m, MemoryInstance>,
+    pub(crate) instance: &'m MemoryInstance,
 }
 
 /// A borrowed reference to a memory instance
 #[derive(Debug)]
 pub struct MemoryRefMut<'m> {
-    pub(crate) instance: RefMut<'m, MemoryInstance>,
+    pub(crate) instance: &'m mut MemoryInstance,
 }
 
 impl<'a> MemoryRefLoad for MemoryRef<'a> {
@@ -142,18 +141,18 @@ impl MemoryStringExt for MemoryRefMut<'_> {}
 
 /// A reference to a global instance
 #[derive(Debug)]
-pub struct GlobalRef {
-    pub(crate) instance: RefCell<GlobalInstance>,
+pub struct GlobalRef<'i> {
+    pub(crate) instance: &'i mut GlobalInstance,
 }
 
-impl GlobalRef {
+impl<'i> GlobalRef<'i> {
     /// Get the value of the global
     pub fn get(&self) -> WasmValue {
-        self.instance.borrow().get()
+        self.instance.get()
     }
 
     /// Set the value of the global
-    pub fn set(&self, val: WasmValue) -> Result<()> {
-        self.instance.borrow_mut().set(val)
+    pub fn set(&mut self, val: WasmValue) -> Result<()> {
+        self.instance.set(val)
     }
 }

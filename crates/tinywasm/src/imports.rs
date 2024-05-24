@@ -71,14 +71,14 @@ impl FuncContext<'_> {
     }
 
     /// Get a reference to an exported memory
-    pub fn exported_memory(&mut self, name: &str) -> Result<crate::MemoryRef<'_>> {
+    pub fn exported_memory(&self, name: &str) -> Result<crate::MemoryRef<'_>> {
         self.instance.exported_memory(name)
     }
 
-    // / Get a reference to an exported memory
-    // pub fn exported_memory_mut(&mut self, name: &str) -> Result<crate::MemoryRefMut<'_>> {
-    //     self.module().exported_memory_mut(self.store, name)
-    // }
+    /// Get a reference to an exported memory
+    pub fn exported_memory_mut(&mut self, name: &str) -> Result<crate::MemoryRefMut<'_>> {
+        self.instance.exported_memory_mut(name)
+    }
 }
 
 impl Debug for HostFunction {
@@ -219,7 +219,6 @@ impl From<&Import> for ExternName {
 #[derive(Clone)]
 pub struct Imports {
     values: BTreeMap<ExternName, Extern>,
-    // module: BTreeMap<String, ModuleInstanceAddr>,
 }
 
 pub(crate) struct ResolvedImports {

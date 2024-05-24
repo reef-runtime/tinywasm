@@ -35,7 +35,7 @@ macro_rules! mem_load {
             mem_addr: tinywasm_types::MemAddr,
             offset: u64,
         ) -> Result<()> {
-            let mem = module.store.get_mem(module.resolve_mem_addr(mem_addr))?;
+            let mem = module.store.get_mem(mem_addr)?;
             let addr: usize = match offset.checked_add(stack.values.pop()?.into()).map(|a| a.try_into()) {
                 Some(Ok(a)) => a,
                 _ => {
@@ -43,13 +43,13 @@ macro_rules! mem_load {
                     return Err(Error::Trap(crate::Trap::MemoryOutOfBounds {
                         offset: offset as usize,
                         len: core::mem::size_of::<$load_type>(),
-                        max: mem.borrow().max_pages(),
+                        max: mem.max_pages(),
                     }));
                 }
             };
 
             const LEN: usize = core::mem::size_of::<$load_type>();
-            let val = mem.borrow().load_as::<LEN, $load_type>(addr)?;
+            let val = mem.load_as::<LEN, $load_type>(addr)?;
             stack.values.push((val as $target_type).into());
             Ok(())
         }
@@ -68,21 +68,21 @@ macro_rules! mem_store {
     ($store_type:ty, $target_type:ty, $arg:expr, $stack:ident, $module:ident) => {{
         #[inline(always)]
         fn mem_store_inner(
-            module: &crate::Instance,
+            module: &mut crate::Instance,
             stack: &mut crate::runtime::Stack,
             mem_addr: tinywasm_types::MemAddr,
             offset: u64,
         ) -> Result<()> {
-            let mem = module.store.get_mem(module.resolve_mem_addr(mem_addr))?;
+            let mem = module.store.get_mem_mut(mem_addr)?;
             let val: $store_type = stack.values.pop()?.into();
             let val = val.to_le_bytes();
             let addr: u64 = stack.values.pop()?.into();
-            mem.borrow_mut().store((offset + addr) as usize, val.len(), &val)?;
+            mem.store((offset + addr) as usize, val.len(), &val)?;
             Ok(())
         }
 
         let (mem_addr, offset) = $arg;
-        mem_store_inner(&$module, $stack, *mem_addr, *offset)?;
+        mem_store_inner(&mut $module, $stack, *mem_addr, *offset)?;
     }};
 }
 

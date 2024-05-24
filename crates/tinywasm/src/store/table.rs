@@ -53,16 +53,6 @@ impl TableInstance {
         self.elements.len() as i32
     }
 
-    fn resolve_func_ref(&self, func_addrs: &[u32], addr: Addr) -> Addr {
-        if self.kind.element_type != ValType::RefFunc {
-            return addr;
-        }
-
-        *func_addrs
-            .get(addr as usize)
-            .expect("error initializing table: function not found. This should have been caught by the validator")
-    }
-
     // Initialize the table with the given elements
     pub(crate) fn init_raw(&mut self, offset: i32, init: &[TableElement]) -> Result<()> {
         let offset = offset as usize;
@@ -79,8 +69,8 @@ impl TableInstance {
     }
 
     // Initialize the table with the given elements (resolves function references)
-    pub(crate) fn init(&mut self, func_addrs: &[u32], offset: i32, init: &[TableElement]) -> Result<()> {
-        let init = init.iter().map(|item| item.map(|addr| self.resolve_func_ref(func_addrs, addr))).collect::<Vec<_>>();
+    pub(crate) fn init(&mut self, offset: i32, init: &[TableElement]) -> Result<()> {
+        let init = init.iter().map(|item| item.map(|addr| addr)).collect::<Vec<_>>();
         self.init_raw(offset, &init)
     }
 }
@@ -183,8 +173,7 @@ mod tests {
         let mut table_instance = TableInstance::new(kind);
 
         let init_elements = vec![TableElement::Initialized(0); 5];
-        let func_addrs = vec![0, 1, 2, 3, 4];
-        let result = table_instance.init(&func_addrs, 0, &init_elements);
+        let result = table_instance.init(0, &init_elements);
 
         assert!(result.is_ok(), "Initializing table with elements failed");
 

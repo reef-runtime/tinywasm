@@ -1,5 +1,4 @@
-use alloc::{boxed::Box, format, string::ToString, vec::Vec};
-use core::cell::RefCell;
+use alloc::{format, string::ToString, vec::Vec};
 use tinywasm_types::*;
 
 use crate::runtime::RawWasmValue;
@@ -21,8 +20,8 @@ pub(crate) use {data::*, element::*, function::*, global::*, memory::*, table::*
 /// See <https://webassembly.github.io/spec/core/exec/runtime.html#store>
 pub(crate) struct Store {
     pub(crate) funcs: Vec<FunctionInstance>,
-    pub(crate) tables: Vec<RefCell<TableInstance>>,
-    pub(crate) memories: Vec<RefCell<MemoryInstance>>,
+    pub(crate) tables: Vec<TableInstance>,
+    pub(crate) memories: Vec<MemoryInstance>,
     pub(crate) globals: Vec<GlobalInstance>,
     pub(crate) elements: Vec<ElementInstance>,
     pub(crate) datas: Vec<DataInstance>,
@@ -30,7 +29,7 @@ pub(crate) struct Store {
 
 impl Store {
     #[cold]
-    fn not_found_error(name: &str) -> Error {
+    pub fn not_found_error(name: &str) -> Error {
         Error::Other(format!("{} not found", name))
     }
 
@@ -42,14 +41,26 @@ impl Store {
 
     /// Get the memory at the actual index in the store
     #[inline]
-    pub(crate) fn get_mem(&self, addr: MemAddr) -> Result<&RefCell<MemoryInstance>> {
+    pub(crate) fn get_mem(&self, addr: MemAddr) -> Result<&MemoryInstance> {
         self.memories.get(addr as usize).ok_or_else(|| Self::not_found_error("memory"))
+    }
+
+    /// Get the mut memory at the actual index in the store
+    #[inline]
+    pub(crate) fn get_mem_mut(&mut self, addr: MemAddr) -> Result<&mut MemoryInstance> {
+        self.memories.get_mut(addr as usize).ok_or_else(|| Self::not_found_error("memory"))
     }
 
     /// Get the table at the actual index in the store
     #[inline]
-    pub(crate) fn get_table(&self, addr: TableAddr) -> Result<&RefCell<TableInstance>> {
+    pub(crate) fn get_table(&self, addr: TableAddr) -> Result<&TableInstance> {
         self.tables.get(addr as usize).ok_or_else(|| Self::not_found_error("table"))
+    }
+
+    /// Get the table at the actual index in the store
+    #[inline]
+    pub(crate) fn get_table_mut(&mut self, addr: TableAddr) -> Result<&mut TableInstance> {
+        self.tables.get_mut(addr as usize).ok_or_else(|| Self::not_found_error("table"))
     }
 
     /// Get the data at the actual index in the store
@@ -102,7 +113,7 @@ impl Store {
         let table_count = self.tables.len();
         let mut table_addrs = Vec::with_capacity(table_count);
         for (i, table) in tables.into_iter().enumerate() {
-            self.tables.push(RefCell::new(TableInstance::new(table)));
+            self.tables.push(TableInstance::new(table));
             table_addrs.push((i + table_count) as TableAddr);
         }
         Ok(table_addrs)
@@ -116,7 +127,7 @@ impl Store {
             if let MemoryArch::I64 = mem.arch {
                 return Err(Error::UnsupportedFeature("64-bit memories".to_string()));
             }
-            self.memories.push(RefCell::new(MemoryInstance::new(mem)));
+            self.memories.push(MemoryInstance::new(mem));
             mem_addrs.push((i + mem_count) as MemAddr);
         }
         Ok(mem_addrs)
@@ -176,7 +187,7 @@ impl Store {
         func_addrs: &[FuncAddr],
         global_addrs: &[Addr],
         elements: &[Element],
-    ) -> Result<(Box<[Addr]>, Option<Trap>)> {
+    ) -> Result<Option<Trap>> {
         let elem_count = self.elements.len();
         let mut elem_addrs = Vec::with_capacity(elem_count);
         for (i, element) in elements.iter().enumerate() {
@@ -210,8 +221,8 @@ impl Store {
                     // This isn't mentioned in the spec, but the "unofficial" testsuite has a test for it:
                     // https://github.com/WebAssembly/testsuite/blob/5a1a590603d81f40ef471abba70a90a9ae5f4627/linking.wast#L264-L276
                     // I have NO IDEA why this is allowed, but it is.
-                    if let Err(Error::Trap(trap)) = table.borrow_mut().init_raw(offset, &init) {
-                        return Ok((elem_addrs.into_boxed_slice(), Some(trap)));
+                    if let Err(Error::Trap(trap)) = table.init_raw(offset, &init) {
+                        return Ok(Some(trap));
                     }
 
                     // f. Execute the instruction elm.drop i
@@ -224,15 +235,11 @@ impl Store {
         }
 
         // this should be optimized out by the compiler
-        Ok((elem_addrs.into_boxed_slice(), None))
+        Ok(None)
     }
 
     /// Add data to the store, returning their addresses in the store
-    pub(crate) fn init_datas(
-        &mut self,
-        mem_addrs: &[MemAddr],
-        datas: Vec<Data>,
-    ) -> Result<(Box<[Addr]>, Option<Trap>)> {
+    pub(crate) fn init_datas(&mut self, mem_addrs: &[MemAddr], datas: Vec<Data>) -> Result<Option<Trap>> {
         let data_count = self.datas.len();
         let mut data_addrs = Vec::with_capacity(data_count);
         for (i, data) in datas.into_iter().enumerate() {
@@ -252,9 +259,9 @@ impl Store {
                         return Err(Error::Other(format!("memory {} not found for data segment {}", mem_addr, i)));
                     };
 
-                    match mem.borrow_mut().store(offset as usize, data.data.len(), &data.data) {
+                    match mem.store(offset as usize, data.data.len(), &data.data) {
                         Ok(()) => None,
-                        Err(Error::Trap(trap)) => return Ok((data_addrs.into_boxed_slice(), Some(trap))),
+                        Err(Error::Trap(trap)) => return Ok(Some(trap)),
                         Err(e) => return Err(e),
                     }
                 }
@@ -266,7 +273,7 @@ impl Store {
         }
 
         // this should be optimized out by the compiler
-        Ok((data_addrs.into_boxed_slice(), None))
+        Ok(None)
     }
 
     pub(crate) fn add_global(&mut self, ty: GlobalType, value: RawWasmValue) -> Result<Addr> {
@@ -275,7 +282,7 @@ impl Store {
     }
 
     pub(crate) fn add_table(&mut self, table: TableType) -> Result<TableAddr> {
-        self.tables.push(RefCell::new(TableInstance::new(table)));
+        self.tables.push(TableInstance::new(table));
         Ok(self.tables.len() as TableAddr - 1)
     }
 
@@ -283,7 +290,7 @@ impl Store {
         if let MemoryArch::I64 = mem.arch {
             return Err(Error::UnsupportedFeature("64-bit memories".to_string()));
         }
-        self.memories.push(RefCell::new(MemoryInstance::new(mem)));
+        self.memories.push(MemoryInstance::new(mem));
         Ok(self.memories.len() as MemAddr - 1)
     }
 

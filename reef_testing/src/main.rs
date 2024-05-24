@@ -106,7 +106,7 @@ fn run(module: Module) -> Result<()> {
     imports.define(
         "reef",
         "reef_log",
-        Extern::typed_func(|mut ctx: FuncContext<'_>, args: (i32, i32)| {
+        Extern::typed_func(|ctx: FuncContext<'_>, args: (i32, i32)| {
             let mem = ctx.exported_memory("memory")?;
             let ptr = args.0 as usize;
             let len = args.1 as usize;
@@ -147,6 +147,14 @@ fn run(module: Module) -> Result<()> {
     let entry_fn_name = "reef_main";
 
     let mut instance = Instance::instantiate_start(module, imports, max_cycles)?;
+
+    // dbg!(&instance.data_addrs);
+    // dbg!(&instance.elem_addrs);
+    // dbg!(&instance.func_addrs);
+    // dbg!(&instance.global_addrs);
+    // dbg!(&instance.mem_addrs);
+    // dbg!(&instance.table_addrs);
+
     let mut main_fn = instance.exported_func::<(), i32>(entry_fn_name).unwrap();
     // println!("{main_fn:?}");
 
