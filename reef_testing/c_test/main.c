@@ -10,7 +10,7 @@ int reef_strlen(char *ptr) {
   return len;
 }
 
-int reef_main() {
+int reef_main(int arg) {
   char *msg = "Hello World!";
   int len = reef_strlen(msg);
 

@@ -109,7 +109,7 @@ fn run(module: Module) -> Result<()> {
 
     let mut instance = Instance::instantiate_start(module, imports, max_cycles)?;
 
-    let mut main_fn = instance.exported_func::<(), i32>(entry_fn_name).unwrap();
+    let mut main_fn = instance.exported_func::<i32, i32>(entry_fn_name).unwrap();
     // println!("{main_fn:?}");
 
     let mut stack = None;
@@ -119,7 +119,7 @@ fn run(module: Module) -> Result<()> {
     loop {
         cycles += 1;
 
-        let call_res = main_fn.call((), stack, max_cycles).unwrap();
+        let call_res = main_fn.call(0, stack, max_cycles).unwrap();
 
         match call_res {
             CallResultOuter::Done(res) => {
