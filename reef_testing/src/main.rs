@@ -70,8 +70,6 @@ fn main() -> Result<()> {
 }
 
 fn run(module: Module) -> Result<()> {
-    dbg!(&module);
-
     let mut imports = Imports::new();
 
     imports.define(

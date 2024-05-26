@@ -1,5 +1,3 @@
-use std::fmt::format;
-
 mod reef {
     #[link(wasm_import_module = "reef")]
     extern "C" {
@@ -16,6 +14,8 @@ pub extern "C" fn reef_main(arg: i32) -> i32 {
     let msg = "Hello World!";
 
     reef::reef_log(msg);
+
+    // panic!("Test");
 
     let struct1 = Struct1 { field1: 69 };
     let struct2 = Struct2 { field1: 69, field2: true };

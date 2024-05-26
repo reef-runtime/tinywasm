@@ -16,6 +16,7 @@ c_test:
 rust_test:
 	cargo build --package rust_test --target=wasm32-unknown-unknown --release
 	cp ../target/wasm32-unknown-unknown/release/rust_test.wasm ./rust_test.wasm
+	wasm-opt -o rust_test.wasm -O rust_test.wasm
 	wasm2wat -o rust_test.wat rust_test.wasm
 	cargo r -- run rust_test.wasm
 
