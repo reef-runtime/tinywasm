@@ -8,13 +8,6 @@ use tinywasm::{CallResultOuter, Instance};
 use tinywasm::{Extern, FuncContext, MemoryStringExt};
 use tinywasm::{Imports, Module};
 
-// use crate::args::to_wasm_args;
-// mod args;
-// mod util;
-
-#[cfg(feature = "wat")]
-mod wat;
-
 #[derive(FromArgs)]
 /// TinyWasm CLI
 struct TinyWasmCli {
@@ -54,9 +47,6 @@ struct Run {
     /// wasm file to run
     #[argh(positional)]
     wasm_file: String,
-    // /// engine to use
-    // #[argh(option, short = 'e', default = "Engine::Main")]
-    // engine: Engine,
 }
 
 fn main() -> Result<()> {
@@ -80,32 +70,13 @@ fn main() -> Result<()> {
 }
 
 fn run(module: Module) -> Result<()> {
-    // let mut store = tinywasm::Store::default();
+    dbg!(&module);
 
     let mut imports = Imports::new();
 
-    // function args can be either a single
-    // value that implements `TryFrom<WasmValue>` or a tuple of them
-    // let print_i32 = Extern::typed_func(|_ctx: tinywasm::FuncContext<'_>, arg: i32| {
-    //     log::debug!("print_i32: {}", arg);
-    //     Ok(())
-    // });
-
-    // let log = Extern::typed_func(|_ctx: tinywasm::FuncContext<'_>, str_pointer: i32| {
-    //     let pointer = str_pointer as *const c_char;
-    //     let c_str: &CStr = unsafe { CStr::from_ptr(pointer) };
-    //     let log_content = c_str.to_str().unwrap();
-    //
-    //     println!("Log content: {log_content}");
-    //
-    //     println!("PRINT GREETING!!!");
-    //     // log::debug!("PRINT ");
-    //     Ok(())
-    // });
-
     imports.define(
         "reef",
-        "reef_log",
+        "log",
         Extern::typed_func(|ctx: FuncContext<'_>, args: (i32, i32)| {
             let mem = ctx.exported_memory("memory")?;
             let ptr = args.0 as usize;
@@ -118,7 +89,7 @@ fn run(module: Module) -> Result<()> {
 
     imports.define(
         "reef",
-        "report_progress",
+        "progress",
         Extern::typed_func(|mut _ctx: FuncContext<'_>, percent: i32| {
             if !(0..=100).contains(&percent) {
                 return Err(tinywasm::Error::Io(std::io::Error::new(
@@ -132,28 +103,11 @@ fn run(module: Module) -> Result<()> {
         }),
     )?;
 
-    // let table_type = TableType::new(ValType::RefFunc, 10, Some(20));
-    // let table_init = WasmValue::default_for(ValType::RefFunc);
-
-    // imports
-    // .define("reef", "log", log)?
-    // .define("my_module", "table", Extern::table(table_type, table_init))?
-    // .define("my_module", "memory", Extern::memory(MemoryType::new_32(1, Some(2))))?
-    // .define("my_module", "global_i32", Extern::global(WasmValue::I32(666), false))?
-    // .link_module("my_other_module")?;
-
     let max_cycles = 10;
 
     let entry_fn_name = "reef_main";
 
     let mut instance = Instance::instantiate_start(module, imports, max_cycles)?;
-
-    // dbg!(&instance.data_addrs);
-    // dbg!(&instance.elem_addrs);
-    // dbg!(&instance.func_addrs);
-    // dbg!(&instance.global_addrs);
-    // dbg!(&instance.mem_addrs);
-    // dbg!(&instance.table_addrs);
 
     let mut main_fn = instance.exported_func::<(), i32>(entry_fn_name).unwrap();
     // println!("{main_fn:?}");
@@ -177,17 +131,9 @@ fn run(module: Module) -> Result<()> {
                 stack = Some(new_stack);
             }
         }
-
-        // println!("{:?}", call_res.unwrap());
     }
 
     println!("Took {cycles} rounds");
-
-    // if let Some(func) = func {
-    //     let func = instance.exported_func_untyped(&store, &func)?;
-    //     let res = func.call(&mut store, &args)?;
-    //     info!("{res:?}");
-    // }
 
     Ok(())
 }

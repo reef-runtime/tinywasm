@@ -29,6 +29,7 @@
             # Rust toolchain
             (rustToolchain.override {
               extensions = ["rust-src" "rust-std" "rust-analyzer"];
+              targets = ["wasm32-unknown-unknown"];
             })
 
             # Wasm tools
