@@ -50,7 +50,7 @@ impl<'m> FuncHandle<'m> {
         }
 
         let func_inst = self.instance.funcs.get_or(self.addr as usize, || Instance::not_found_error("function"))?;
-        let wasm_func = match &func_inst.func {
+        let wasm_func = match &func_inst {
             Function::Host(host_func) => {
                 let ctx = FuncContext { module: &self.instance.module, memories: &mut self.instance.memories };
                 return Ok(CallResult::Done((host_func.func)(ctx, params)?));
@@ -71,7 +71,7 @@ impl<'m> FuncHandle<'m> {
         };
 
         // 9. Invoke the function instance
-        let runtime = crate::runtime::interpreter::InterpreterRuntime {};
+        let runtime = crate::runtime::interpreter::Interpreter {};
         if !runtime.exec(self.instance, &mut stack, max_cycles)? {
             // panic!("{stack:?}");
             return Ok(CallResult::Incomplete(stack));

@@ -22,9 +22,9 @@ use no_std_floats::NoStdFloatExt;
 
 /// The TinyWasm runtime.
 #[derive(Debug, Default)]
-pub struct InterpreterRuntime {}
+pub struct Interpreter {}
 
-impl InterpreterRuntime {
+impl Interpreter {
     pub(crate) fn exec(&self, mut instance: &mut Instance, stack: &mut Stack, max_cycles: usize) -> Result<bool> {
         let mut cf = stack.call_stack.pop()?;
         // let mut instance = store.get_module_instance().unwrap().clone();
@@ -578,7 +578,7 @@ impl InterpreterRuntime {
     #[inline(always)]
     fn exec_call(&self, v: u32, stack: &mut Stack, cf: &mut CallFrame, instance: &mut Instance) -> Result<()> {
         let func_inst = instance.funcs.get_or_instance(v, "function")?;
-        let wasm_func = match &func_inst.func {
+        let wasm_func = match &func_inst {
             crate::Function::Wasm(wasm_func) => wasm_func,
             crate::Function::Host(host_func) => {
                 let params = stack.values.pop_params(&host_func.ty.params)?;
@@ -621,7 +621,7 @@ impl InterpreterRuntime {
         let func_inst = instance.funcs.get_or_instance(func_ref, "function")?;
         let call_ty = instance.func_ty(type_addr);
 
-        let wasm_func = match &func_inst.func {
+        let wasm_func = match &func_inst {
             crate::Function::Wasm(ref f) => f,
             crate::Function::Host(host_func) => {
                 if unlikely(host_func.ty != *call_ty) {

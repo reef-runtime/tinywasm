@@ -4,7 +4,7 @@ use tinywasm_types::*;
 use crate::func::{FromWasmValueTuple, IntoWasmValueTuple};
 use crate::runtime::RawWasmValue;
 use crate::{
-    store::*, Error, Extern, FuncHandle, FuncHandleTyped, Imports, LinkingError, MemoryRef, MemoryRefMut,
+    store::*, Error, Extern, FuncHandle, FuncHandleTyped, Function, Imports, LinkingError, MemoryRef, MemoryRefMut,
     ResolvedImports, Result, Trap, VecExt,
 };
 
@@ -13,7 +13,7 @@ use crate::{
 pub struct Instance {
     pub(crate) module: Module,
 
-    pub(crate) funcs: Vec<FunctionInstance>,
+    pub(crate) funcs: Vec<Function>,
     pub(crate) tables: Vec<TableInstance>,
     pub(crate) memories: Vec<MemoryInstance>,
     pub(crate) globals: Vec<GlobalInstance>,
@@ -56,11 +56,11 @@ impl Instance {
         Ok(instance)
     }
 
-    pub fn instantiate_start(module: Module, imports: Imports, max_cycles: usize) -> Result<Self> {
-        let mut instance = Self::instantiate(module, imports)?;
-        let _ = instance.start(max_cycles)?;
-        Ok(instance)
-    }
+    // pub fn instantiate_start(module: Module, imports: Imports, max_cycles: usize) -> Result<Self> {
+    //     let mut instance = Self::instantiate(module, imports)?;
+    //     let _ = instance.start(max_cycles)?;
+    //     Ok(instance)
+    // }
 
     /// Get a export by name
     pub(crate) fn export_addr(&self, name: &str) -> Option<ExternVal> {
@@ -82,7 +82,7 @@ impl Instance {
         };
 
         let func_inst = self.get_func(func_addr)?;
-        let ty = func_inst.func.ty();
+        let ty = func_inst.ty();
 
         Ok(FuncHandle { addr: func_addr, name: Some(name.to_string()), ty: ty.clone(), instance: self })
     }
@@ -129,45 +129,45 @@ impl Instance {
         Ok(MemoryRefMut { instance: mem })
     }
 
-    /// Get the start function of the module
-    ///
-    /// Returns None if the module has no start function
-    /// If no start function is specified, also checks for a _start function in the exports
-    ///
-    /// See <https://webassembly.github.io/spec/core/syntax/modules.html#start-function>
-    pub fn start_func(&mut self) -> Result<Option<FuncHandle<'_>>> {
-        let func_index = match self.module.start_func {
-            Some(func_index) => func_index,
-            None => {
-                // alternatively, check for a _start function in the exports
-                let Some(ExternVal::Func(func_addr)) = self.export_addr("_start") else {
-                    return Ok(None);
-                };
+    // /// Get the start function of the module
+    // ///
+    // /// Returns None if the module has no start function
+    // /// If no start function is specified, also checks for a _start function in the exports
+    // ///
+    // /// See <https://webassembly.github.io/spec/core/syntax/modules.html#start-function>
+    // pub fn start_func(&mut self) -> Result<Option<FuncHandle<'_>>> {
+    //     let func_index = match self.module.start_func {
+    //         Some(func_index) => func_index,
+    //         None => {
+    //             // alternatively, check for a _start function in the exports
+    //             let Some(ExternVal::Func(func_addr)) = self.export_addr("_start") else {
+    //                 return Ok(None);
+    //             };
 
-                func_addr
-            }
-        };
+    //             func_addr
+    //         }
+    //     };
 
-        // let func_addr = self.func_addrs.get(func_index as usize).expect("No func addr for start func, this is a bug");
-        let func_inst = self.get_func(func_index)?;
-        let ty = func_inst.func.ty();
+    //     // let func_addr = self.func_addrs.get(func_index as usize).expect("No func addr for start func, this is a bug");
+    //     let func_inst = self.get_func(func_index)?;
+    //     let ty = func_inst.func.ty();
 
-        Ok(Some(FuncHandle { addr: func_index, ty: ty.clone(), name: None, instance: self }))
-    }
+    //     Ok(Some(FuncHandle { addr: func_index, ty: ty.clone(), name: None, instance: self }))
+    // }
 
-    /// Invoke the start function of the module
-    ///
-    /// Returns None if the module has no start function
-    ///
-    /// See <https://webassembly.github.io/spec/core/syntax/modules.html#syntax-start>
-    pub fn start(&mut self, max_cycles: usize) -> Result<Option<()>> {
-        let Some(mut func) = self.start_func()? else {
-            return Ok(None);
-        };
+    // /// Invoke the start function of the module
+    // ///
+    // /// Returns None if the module has no start function
+    // ///
+    // /// See <https://webassembly.github.io/spec/core/syntax/modules.html#syntax-start>
+    // pub fn start(&mut self, max_cycles: usize) -> Result<Option<()>> {
+    //     let Some(mut func) = self.start_func()? else {
+    //         return Ok(None);
+    //     };
 
-        let _ = func.call(&[], None, max_cycles)?;
-        Ok(Some(()))
-    }
+    //     let _ = func.call(&[], None, max_cycles)?;
+    //     Ok(Some(()))
+    // }
 }
 
 impl Instance {
@@ -178,7 +178,7 @@ impl Instance {
 
     /// Get the function at the actual index in the store
     #[inline]
-    pub(crate) fn get_func(&self, addr: FuncAddr) -> Result<&FunctionInstance> {
+    pub(crate) fn get_func(&self, addr: FuncAddr) -> Result<&Function> {
         self.funcs.get(addr as usize).ok_or_else(|| Self::not_found_error("function"))
     }
 
@@ -258,7 +258,7 @@ impl Instance {
                         .ok_or_else(|| LinkingError::incompatible_import_type(import))?;
 
                     Imports::compare_types(import, extern_func.ty(), import_func_type)?;
-                    addrs.funcs.push(self.funcs.add(FunctionInstance { func: extern_func }) as u32);
+                    addrs.funcs.push(self.funcs.add(extern_func) as u32);
                 }
                 _ => return Err(LinkingError::incompatible_import_type(import).into()),
             }
@@ -272,7 +272,7 @@ impl Instance {
         let func_count = self.funcs.len();
         let mut func_addrs = Vec::with_capacity(func_count);
         for (i, func) in funcs.into_iter().enumerate() {
-            self.funcs.push(FunctionInstance::new_wasm(func));
+            self.funcs.push(Function::Wasm(func));
             func_addrs.push((i + func_count) as FuncAddr);
         }
         Ok(func_addrs)
