@@ -35,7 +35,7 @@ macro_rules! mem_load {
             mem_addr: tinywasm_types::MemAddr,
             offset: u64,
         ) -> Result<()> {
-            let mem = module.store.get_mem(mem_addr)?;
+            let mem = module.get_mem(mem_addr)?;
             let addr: usize = match offset.checked_add(stack.values.pop()?.into()).map(|a| a.try_into()) {
                 Some(Ok(a)) => a,
                 _ => {
@@ -73,7 +73,7 @@ macro_rules! mem_store {
             mem_addr: tinywasm_types::MemAddr,
             offset: u64,
         ) -> Result<()> {
-            let mem = module.store.get_mem_mut(mem_addr)?;
+            let mem = module.get_mem_mut(mem_addr)?;
             let val: $store_type = stack.values.pop()?.into();
             let val = val.to_le_bytes();
             let addr: u64 = stack.values.pop()?.into();

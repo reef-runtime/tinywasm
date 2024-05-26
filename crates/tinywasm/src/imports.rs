@@ -257,14 +257,14 @@ impl Imports {
         self.values.get(&name).cloned()
     }
 
-    fn compare_types<T: Debug + PartialEq>(import: &Import, actual: &T, expected: &T) -> Result<()> {
+    pub(crate) fn compare_types<T: Debug + PartialEq>(import: &Import, actual: &T, expected: &T) -> Result<()> {
         if expected != actual {
             return Err(LinkingError::incompatible_import_type(import).into());
         }
         Ok(())
     }
 
-    fn compare_table_types(import: &Import, expected: &TableType, actual: &TableType) -> Result<()> {
+    pub(crate) fn compare_table_types(import: &Import, expected: &TableType, actual: &TableType) -> Result<()> {
         Self::compare_types(import, &actual.element_type, &expected.element_type)?;
 
         if actual.size_initial > expected.size_initial {
@@ -282,7 +282,7 @@ impl Imports {
         Ok(())
     }
 
-    fn compare_memory_types(
+    pub(crate) fn compare_memory_types(
         import: &Import,
         expected: &MemoryType,
         actual: &MemoryType,
@@ -309,43 +309,7 @@ impl Imports {
         Ok(())
     }
 
-    pub(crate) fn link(
-        mut self,
-        store: &mut crate::store::Store,
-        module: &tinywasm_types::Module,
-    ) -> Result<ResolvedImports> {
-        let mut imports = ResolvedImports::new();
+    // pub(crate) fn link(mut self, instance: &mut Instance) -> Result<ResolvedImports> {
 
-        for import in module.imports.iter() {
-            let val = self.take(import).ok_or_else(|| LinkingError::unknown_import(import))?;
-
-            // A link to something that needs to be added to the store
-            match (val, &import.kind) {
-                (Extern::Global { ty, val }, ImportKind::Global(import_ty)) => {
-                    Self::compare_types(import, &ty, import_ty)?;
-                    imports.globals.push(store.add_global(ty, val.into())?);
-                }
-                (Extern::Table { ty, .. }, ImportKind::Table(import_ty)) => {
-                    Self::compare_table_types(import, &ty, import_ty)?;
-                    imports.tables.push(store.add_table(ty)?);
-                }
-                (Extern::Memory { ty }, ImportKind::Memory(import_ty)) => {
-                    Self::compare_memory_types(import, &ty, import_ty, None)?;
-                    imports.memories.push(store.add_mem(ty)?);
-                }
-                (Extern::Function(extern_func), ImportKind::Function(ty)) => {
-                    let import_func_type = module
-                        .func_types
-                        .get(*ty as usize)
-                        .ok_or_else(|| LinkingError::incompatible_import_type(import))?;
-
-                    Self::compare_types(import, extern_func.ty(), import_func_type)?;
-                    imports.funcs.push(store.add_func(extern_func)?);
-                }
-                _ => return Err(LinkingError::incompatible_import_type(import).into()),
-            }
-        }
-
-        Ok(imports)
-    }
+    // }
 }

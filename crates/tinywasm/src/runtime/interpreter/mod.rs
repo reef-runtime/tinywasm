@@ -5,7 +5,6 @@ use tinywasm_types::{BlockArgs, ElementKind, ValType};
 
 use super::{RawWasmValue, Stack};
 use crate::runtime::{BlockFrame, BlockType, CallFrame};
-use crate::store::Store;
 use crate::{cold, unlikely, Instance};
 use crate::{Error, FuncContext, Result, Trap};
 
@@ -105,7 +104,7 @@ impl InterpreterRuntime {
                 MemoryCopy(from, to) => self.exec_memory_copy(*from, *to, stack, instance)?,
                 MemoryFill(addr) => self.exec_memory_fill(*addr, stack, instance)?,
                 MemoryInit(data_idx, mem_idx) => self.exec_memory_init(*data_idx, *mem_idx, stack, instance)?,
-                DataDrop(data_index) => instance.store.get_data_mut(*data_index)?.drop(),
+                DataDrop(data_index) => instance.get_data_mut(*data_index)?.drop(),
 
                 I32Store { mem_addr, offset } => mem_store!(i32, (mem_addr, offset), stack, instance),
                 I64Store { mem_addr, offset } => mem_store!(i64, (mem_addr, offset), stack, instance),
@@ -355,7 +354,7 @@ impl InterpreterRuntime {
         cf: &CallFrame,
         module: &mut Instance,
     ) -> Result<()> {
-        let mem = module.store.get_mem_mut(mem_addr as u32)?;
+        let mem = module.get_mem_mut(mem_addr as u32)?;
         let val = const_i32.to_le_bytes();
         let addr: u64 = cf.get_local(local).into();
         mem.store((offset as u64 + addr) as usize, val.len(), &val)?;
@@ -425,20 +424,20 @@ impl InterpreterRuntime {
 
     #[inline(always)]
     fn exec_global_get(&self, global_index: u32, stack: &mut Stack, module: &Instance) -> Result<()> {
-        let global = module.store.get_global_val(global_index)?;
+        let global = module.get_global_val(global_index)?;
         stack.values.push(global);
         Ok(())
     }
 
     #[inline(always)]
     fn exec_global_set(&self, global_index: u32, stack: &mut Stack, module: &mut Instance) -> Result<()> {
-        module.store.set_global_val(global_index, stack.values.pop()?)?;
+        module.set_global_val(global_index, stack.values.pop()?)?;
         Ok(())
     }
 
     #[inline(always)]
     fn exec_table_get(&self, table_index: u32, stack: &mut Stack, module: &Instance) -> Result<()> {
-        let table = module.store.get_table(table_index)?;
+        let table = module.get_table(table_index)?;
         let idx: u32 = stack.values.pop()?.into();
         let v = table.get_wasm_val(idx)?;
         stack.values.push(v.into());
@@ -447,7 +446,7 @@ impl InterpreterRuntime {
 
     #[inline(always)]
     fn exec_table_set(&self, table_index: u32, stack: &mut Stack, module: &mut Instance) -> Result<()> {
-        let table = module.store.get_table_mut(table_index)?;
+        let table = module.get_table_mut(table_index)?;
         let val = stack.values.pop()?.into();
         let idx = stack.values.pop()?.into();
         table.set(idx, val)?;
@@ -456,15 +455,15 @@ impl InterpreterRuntime {
 
     #[inline(always)]
     fn exec_table_size(&self, table_index: u32, stack: &mut Stack, module: &Instance) -> Result<()> {
-        let table = module.store.get_table(table_index)?;
+        let table = module.get_table(table_index)?;
         stack.values.push(table.size().into());
         Ok(())
     }
 
     #[inline(always)]
     fn exec_table_init(&self, elem_index: u32, table_index: u32, module: &mut Instance) -> Result<()> {
-        let table = module.store.tables.get_mut(table_index as usize).ok_or_else(|| Store::not_found_error("table"))?;
-        let elem = module.store.elements.get(elem_index as usize).ok_or_else(|| Store::not_found_error("element"))?;
+        let table = module.tables.get_mut(table_index as usize).ok_or_else(|| Instance::not_found_error("table"))?;
+        let elem = module.elements.get(elem_index as usize).ok_or_else(|| Instance::not_found_error("element"))?;
 
         if let ElementKind::Passive = elem.kind {
             return Err(Trap::TableOutOfBounds { offset: 0, len: 0, max: 0 }.into());
@@ -495,7 +494,7 @@ impl InterpreterRuntime {
             return Err(Error::UnsupportedFeature("memory.size with byte != 0".to_string()));
         }
 
-        let mem = module.store.get_mem(addr)?;
+        let mem = module.get_mem(addr)?;
         stack.values.push((mem.page_count() as i32).into());
         Ok(())
     }
@@ -506,7 +505,7 @@ impl InterpreterRuntime {
             return Err(Error::UnsupportedFeature("memory.grow with byte != 0".to_string()));
         }
 
-        let mem = module.store.get_mem_mut(addr)?;
+        let mem = module.get_mem_mut(addr)?;
         let prev_size = mem.page_count() as i32;
         let pages_delta = stack.values.last_mut()?;
         *pages_delta = match mem.grow(i32::from(*pages_delta)) {
@@ -524,7 +523,7 @@ impl InterpreterRuntime {
         let dst: i32 = stack.values.pop()?.into();
 
         if from == to {
-            let mem_from = module.store.get_mem_mut(from)?;
+            let mem_from = module.get_mem_mut(from)?;
             // copy within the same memory
             mem_from.copy_within(dst as usize, src as usize, size as usize)?;
         } else {
@@ -543,7 +542,7 @@ impl InterpreterRuntime {
         let val: i32 = stack.values.pop()?.into();
         let dst: i32 = stack.values.pop()?.into();
 
-        let mem = module.store.get_mem_mut(addr)?;
+        let mem = module.get_mem_mut(addr)?;
         mem.fill(dst as usize, size as usize, val as u8)?;
         Ok(())
     }
@@ -560,24 +559,23 @@ impl InterpreterRuntime {
         let offset = i32::from(stack.values.pop()?) as usize;
         let dst = i32::from(stack.values.pop()?) as usize;
 
-        let data =
-            match &module.store.datas.get(data_index as usize).ok_or_else(|| Store::not_found_error("data"))?.data {
-                Some(data) => data,
-                None => return Err(Trap::MemoryOutOfBounds { offset: 0, len: 0, max: 0 }.into()),
-            };
+        let data = match &module.datas.get(data_index as usize).ok_or_else(|| Instance::not_found_error("data"))?.data {
+            Some(data) => data,
+            None => return Err(Trap::MemoryOutOfBounds { offset: 0, len: 0, max: 0 }.into()),
+        };
 
         if unlikely(offset + size > data.len()) {
             return Err(Trap::MemoryOutOfBounds { offset, len: size, max: data.len() }.into());
         }
 
-        let mem = module.store.memories.get_mut(mem_index as usize).ok_or_else(|| Store::not_found_error("memory"))?;
+        let mem = module.memories.get_mut(mem_index as usize).ok_or_else(|| Instance::not_found_error("memory"))?;
         mem.store(dst, size, &data[offset..(offset + size)])?;
         Ok(())
     }
 
     #[inline(always)]
     fn exec_call(&self, v: u32, stack: &mut Stack, cf: &mut CallFrame, module: &mut Instance) -> Result<()> {
-        let func_inst = module.store.get_func(v)?;
+        let func_inst = module.get_func(v)?;
         let wasm_func = match &func_inst.func {
             crate::Function::Wasm(wasm_func) => wasm_func,
             crate::Function::Host(host_func) => {
@@ -607,7 +605,7 @@ impl InterpreterRuntime {
         cf: &mut CallFrame,
         module: &mut Instance,
     ) -> Result<()> {
-        let table = module.store.get_table(table_addr)?;
+        let table = module.get_table(table_addr)?;
         let table_idx: u32 = stack.values.pop()?.into();
 
         // verify that the table is of the right type, this should be validated by the parser already
@@ -616,7 +614,7 @@ impl InterpreterRuntime {
             table.get(table_idx)?.addr().ok_or(Trap::UninitializedElement { index: table_idx as usize })?
         };
 
-        let func_inst = module.store.get_func(func_ref)?.clone();
+        let func_inst = module.get_func(func_ref)?.clone();
         let call_ty = module.func_ty(type_addr);
 
         let wasm_func = match func_inst.func {
