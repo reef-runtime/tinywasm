@@ -3,7 +3,7 @@ use alloc::{boxed::Box, format, string::String, string::ToString, vec, vec::Vec}
 use tinywasm_types::{FuncType, ValType, WasmValue};
 
 use crate::runtime::{CallFrame, Stack};
-use crate::{Error, FuncContext, Instance, Result};
+use crate::{Error, FuncContext, Instance, Result, VecExt};
 
 #[derive(Debug)]
 /// A function handle
@@ -49,12 +49,11 @@ impl<'m> FuncHandle<'m> {
             return Err(Error::Other("Type mismatch".into()));
         }
 
-        let func_inst = self.instance.get_func(self.addr)?;
+        let func_inst = self.instance.funcs.get_or(self.addr as usize, || Instance::not_found_error("function"))?;
         let wasm_func = match &func_inst.func {
             Function::Host(host_func) => {
-                let func = &host_func.clone().func;
-                let ctx = FuncContext { instance: self.instance };
-                return Ok(CallResult::Done((func)(ctx, params)?));
+                let ctx = FuncContext { module: &self.instance.module, memories: &mut self.instance.memories };
+                return Ok(CallResult::Done((host_func.func)(ctx, params)?));
             }
             Function::Wasm(wasm_func) => wasm_func,
         };

@@ -5,6 +5,7 @@ use tinywasm_types::{BlockArgs, ElementKind, ValType};
 
 use super::{RawWasmValue, Stack};
 use crate::runtime::{BlockFrame, BlockType, CallFrame};
+use crate::VecExt;
 use crate::{cold, unlikely, Instance};
 use crate::{Error, FuncContext, Result, Trap};
 
@@ -574,14 +575,16 @@ impl InterpreterRuntime {
     }
 
     #[inline(always)]
-    fn exec_call(&self, v: u32, stack: &mut Stack, cf: &mut CallFrame, module: &mut Instance) -> Result<()> {
-        let func_inst = module.get_func(v)?;
+    fn exec_call(&self, v: u32, stack: &mut Stack, cf: &mut CallFrame, instance: &mut Instance) -> Result<()> {
+        let func_inst = instance.funcs.get_or_instance(v, "function")?;
         let wasm_func = match &func_inst.func {
             crate::Function::Wasm(wasm_func) => wasm_func,
             crate::Function::Host(host_func) => {
-                let func = &host_func.clone();
                 let params = stack.values.pop_params(&host_func.ty.params)?;
-                let res = (func.func)(FuncContext { instance: module }, &params)?;
+                let res = (host_func.func)(
+                    FuncContext { module: &instance.module, memories: &mut instance.memories },
+                    &params,
+                )?;
                 stack.values.extend_from_typed(&res);
                 cf.instr_ptr += 1;
                 return Ok(());
@@ -603,9 +606,9 @@ impl InterpreterRuntime {
         table_addr: u32,
         stack: &mut Stack,
         cf: &mut CallFrame,
-        module: &mut Instance,
+        instance: &mut Instance,
     ) -> Result<()> {
-        let table = module.get_table(table_addr)?;
+        let table = instance.tables.get_or_instance(table_addr, "table")?;
         let table_idx: u32 = stack.values.pop()?.into();
 
         // verify that the table is of the right type, this should be validated by the parser already
@@ -614,10 +617,10 @@ impl InterpreterRuntime {
             table.get(table_idx)?.addr().ok_or(Trap::UninitializedElement { index: table_idx as usize })?
         };
 
-        let func_inst = module.get_func(func_ref)?.clone();
-        let call_ty = module.func_ty(type_addr);
+        let func_inst = instance.funcs.get_or_instance(func_ref, "function")?;
+        let call_ty = instance.func_ty(type_addr);
 
-        let wasm_func = match func_inst.func {
+        let wasm_func = match &func_inst.func {
             crate::Function::Wasm(ref f) => f,
             crate::Function::Host(host_func) => {
                 if unlikely(host_func.ty != *call_ty) {
@@ -628,9 +631,12 @@ impl InterpreterRuntime {
                     .into());
                 }
 
-                let host_func = host_func.clone();
+                // let host_func = host_func.clone();
                 let params = stack.values.pop_params(&host_func.ty.params)?;
-                let res = (host_func.func)(FuncContext { instance: module }, &params)?;
+                let res = (host_func.func)(
+                    FuncContext { module: &instance.module, memories: &mut instance.memories },
+                    &params,
+                )?;
                 stack.values.extend_from_typed(&res);
 
                 cf.instr_ptr += 1;

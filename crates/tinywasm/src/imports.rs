@@ -1,22 +1,22 @@
 use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
-use alloc::rc::Rc;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::fmt::Debug;
 
 use crate::func::{FromWasmValueTuple, IntoWasmValueTuple, ValTypesFromTuple};
-use crate::{LinkingError, Result};
+use crate::store::MemoryInstance;
+use crate::{Error, LinkingError, MemoryRef, MemoryRefMut, Result, VecExt};
 use tinywasm_types::*;
 
 /// The internal representation of a function
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum Function {
     /// A host function
-    Host(Rc<HostFunction>),
+    Host(HostFunction),
 
     /// A pointer to a WebAssembly function
-    Wasm(Rc<WasmFunction>),
+    Wasm(WasmFunction),
 }
 
 impl Function {
@@ -51,33 +51,39 @@ pub(crate) type HostFuncInner = Box<dyn Fn(FuncContext<'_>, &[WasmValue]) -> Res
 /// The context of a host-function call
 #[derive(Debug)]
 pub struct FuncContext<'i> {
-    pub(crate) instance: &'i mut crate::instance::Instance,
+    pub(crate) module: &'i Module,
+    pub(crate) memories: &'i mut Vec<MemoryInstance>,
 }
 
 impl FuncContext<'_> {
-    /// Get a reference to the store
-    // pub fn store(&self) -> &crate::Store {
-    //     self.store
-    // }
-
-    /// Get a mutable reference to the store
-    // pub fn store_mut(&mut self) -> &mut crate::Store {
-    //     self.store
-    // }
-
     /// Get a reference to the module instance
-    pub fn module(&self) -> &crate::Instance {
-        self.instance
+    pub fn module(&self) -> &crate::Module {
+        self.module
     }
 
     /// Get a reference to an exported memory
-    pub fn exported_memory(&self, name: &str) -> Result<crate::MemoryRef<'_>> {
-        self.instance.exported_memory(name)
+    pub fn exported_memory(&self, name: &str) -> Result<MemoryRef<'_>> {
+        Ok(MemoryRef { instance: self.memories.get_or_instance(self.exported_memory_addr(name)?, "memory")? })
     }
 
     /// Get a reference to an exported memory
-    pub fn exported_memory_mut(&mut self, name: &str) -> Result<crate::MemoryRefMut<'_>> {
-        self.instance.exported_memory_mut(name)
+    pub fn exported_memory_mut(&mut self, name: &str) -> Result<MemoryRefMut<'_>> {
+        Ok(MemoryRefMut { instance: self.memories.get_mut_or_instance(self.exported_memory_addr(name)?, "memory")? })
+    }
+
+    fn exported_memory_addr(&self, name: &str) -> Result<u32> {
+        let export = self
+            .module
+            .exports
+            .iter()
+            .find(|e| &*e.name == name)
+            .ok_or_else(|| Error::Other(format!("Export not found: {}", name)))?;
+
+        if export.kind != ExternalKind::Memory {
+            return Err(Error::Other(format!("Export is not a memory: {}", name)));
+        };
+
+        Ok(export.index)
     }
 }
 
@@ -87,7 +93,7 @@ impl Debug for HostFunction {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 #[non_exhaustive]
 /// An external value
 pub enum Extern {
@@ -114,7 +120,7 @@ pub enum Extern {
     },
 
     /// A function
-    Function(Function),
+    Function(Option<Function>),
 }
 
 impl Extern {
@@ -138,7 +144,7 @@ impl Extern {
         ty: &tinywasm_types::FuncType,
         func: impl Fn(FuncContext<'_>, &[WasmValue]) -> Result<Vec<WasmValue>> + 'static,
     ) -> Self {
-        Self::Function(Function::Host(Rc::new(HostFunction { func: Box::new(func), ty: ty.clone() })))
+        Self::Function(Some(Function::Host(HostFunction { func: Box::new(func), ty: ty.clone() })))
     }
 
     /// Create a new typed function import
@@ -156,7 +162,7 @@ impl Extern {
         };
 
         let ty = tinywasm_types::FuncType { params: P::val_types(), results: R::val_types() };
-        Self::Function(Function::Host(Rc::new(HostFunction { func: Box::new(inner_func), ty })))
+        Self::Function(Some(Function::Host(HostFunction { func: Box::new(inner_func), ty })))
     }
 
     /// Get the kind of the external value
@@ -216,7 +222,8 @@ impl From<&Import> for ExternName {
 ///
 /// Note that module instance addresses for [`Imports::link_module`] can be obtained from [`crate::ModuleInstance::id`].
 /// Now, the imports object can be passed to [`crate::ModuleInstance::instantiate`].
-#[derive(Clone)]
+
+// #[derive(Clone)]
 pub struct Imports {
     values: BTreeMap<ExternName, Extern>,
 }
@@ -254,7 +261,7 @@ impl Imports {
 
     pub(crate) fn take(&mut self, import: &Import) -> Option<Extern> {
         let name = ExternName::from(import);
-        self.values.get(&name).cloned()
+        self.values.remove(&name)
     }
 
     pub(crate) fn compare_types<T: Debug + PartialEq>(import: &Import, actual: &T, expected: &T) -> Result<()> {

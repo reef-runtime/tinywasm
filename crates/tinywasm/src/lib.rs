@@ -113,3 +113,44 @@ pub(crate) fn unlikely(b: bool) -> bool {
     };
     b
 }
+
+pub(crate) trait VecExt<T> {
+    fn add(&mut self, elemnt: T) -> usize;
+
+    fn get_or<E, F>(&self, index: usize, err: F) -> Result<&T, E>
+    where
+        F: FnOnce() -> E;
+    fn get_mut_or<E, F>(&mut self, index: usize, err: F) -> Result<&mut T, E>
+    where
+        F: FnOnce() -> E;
+
+    fn get_or_instance(&self, index: u32, name: &str) -> Result<&T, Error>;
+    fn get_mut_or_instance(&mut self, index: u32, name: &str) -> Result<&mut T, Error>;
+}
+impl<T> VecExt<T> for Vec<T> {
+    fn add(&mut self, value: T) -> usize {
+        self.push(value);
+        self.len() - 1
+    }
+
+    fn get_or<E, F>(&self, index: usize, err: F) -> Result<&T, E>
+    where
+        F: FnOnce() -> E,
+    {
+        self.get(index).ok_or_else(err)
+    }
+
+    fn get_mut_or<E, F>(&mut self, index: usize, err: F) -> Result<&mut T, E>
+    where
+        F: FnOnce() -> E,
+    {
+        self.get_mut(index).ok_or_else(err)
+    }
+
+    fn get_or_instance(&self, index: u32, name: &str) -> Result<&T, Error> {
+        self.get_or(index as usize, || Instance::not_found_error(name))
+    }
+    fn get_mut_or_instance(&mut self, index: u32, name: &str) -> Result<&mut T, Error> {
+        self.get_mut_or(index as usize, || Instance::not_found_error(name))
+    }
+}

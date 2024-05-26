@@ -4,8 +4,8 @@ use tinywasm_types::*;
 use crate::func::{FromWasmValueTuple, IntoWasmValueTuple};
 use crate::runtime::RawWasmValue;
 use crate::{
-    store::*, Error, Extern, FuncHandle, FuncHandleTyped, Function, Imports, LinkingError, MemoryRef, MemoryRefMut,
-    ResolvedImports, Result, Trap,
+    store::*, Error, Extern, FuncHandle, FuncHandleTyped, Imports, LinkingError, MemoryRef, MemoryRefMut,
+    ResolvedImports, Result, Trap, VecExt,
 };
 
 #[allow(dead_code)]
@@ -63,7 +63,7 @@ impl Instance {
     }
 
     /// Get a export by name
-    pub fn export_addr(&self, name: &str) -> Option<ExternVal> {
+    pub(crate) fn export_addr(&self, name: &str) -> Option<ExternVal> {
         let export = self.module.exports.iter().find(|e| e.name == name.into())?;
 
         Some(ExternVal::new(export.kind, export.index))
@@ -118,13 +118,13 @@ impl Instance {
     }
 
     /// Get a memory by address
-    pub fn memory(&self, addr: MemAddr) -> Result<MemoryRef<'_>> {
+    pub(crate) fn memory(&self, addr: MemAddr) -> Result<MemoryRef<'_>> {
         let mem = self.get_mem(addr)?;
         Ok(MemoryRef { instance: mem })
     }
 
     /// Get a memory by address (mutable)
-    pub fn memory_mut(&mut self, addr: MemAddr) -> Result<MemoryRefMut<'_>> {
+    pub(crate) fn memory_mut(&mut self, addr: MemAddr) -> Result<MemoryRefMut<'_>> {
         let mem = self.get_mem_mut(addr)?;
         Ok(MemoryRefMut { instance: mem })
     }
@@ -172,7 +172,7 @@ impl Instance {
 
 impl Instance {
     #[cold]
-    pub fn not_found_error(name: &str) -> Error {
+    pub(crate) fn not_found_error(name: &str) -> Error {
         Error::Other(format!("{} not found", name))
     }
 
@@ -208,20 +208,8 @@ impl Instance {
 
     /// Get the data at the actual index in the store
     #[inline]
-    pub(crate) fn get_data(&self, addr: DataAddr) -> Result<&DataInstance> {
-        self.datas.get(addr as usize).ok_or_else(|| Self::not_found_error("data"))
-    }
-
-    /// Get the data at the actual index in the store
-    #[inline]
     pub(crate) fn get_data_mut(&mut self, addr: DataAddr) -> Result<&mut DataInstance> {
         self.datas.get_mut(addr as usize).ok_or_else(|| Self::not_found_error("data"))
-    }
-
-    /// Get the element at the actual index in the store
-    #[inline]
-    pub(crate) fn get_elem(&self, addr: ElemAddr) -> Result<&ElementInstance> {
-        self.elements.get(addr as usize).ok_or_else(|| Self::not_found_error("element"))
     }
 
     /// Get the global at the actual index in the store
@@ -262,7 +250,7 @@ impl Instance {
                     }
                     addrs.memories.push(self.memories.add(MemoryInstance::new(ty)) as u32);
                 }
-                (Extern::Function(extern_func), ImportKind::Function(ty)) => {
+                (Extern::Function(Some(extern_func)), ImportKind::Function(ty)) => {
                     let import_func_type = self
                         .module
                         .func_types
@@ -489,15 +477,5 @@ impl Instance {
             })?),
         };
         Ok(val)
-    }
-}
-
-pub(crate) trait VecExt<T> {
-    fn add(&mut self, elemnt: T) -> usize;
-}
-impl<T> VecExt<T> for Vec<T> {
-    fn add(&mut self, value: T) -> usize {
-        self.push(value);
-        self.len() - 1
     }
 }

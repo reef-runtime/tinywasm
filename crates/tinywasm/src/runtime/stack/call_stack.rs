@@ -1,7 +1,7 @@
 use crate::runtime::{BlockType, RawWasmValue};
 use crate::{cold, unlikely};
 use crate::{Error, Result, Trap};
-use alloc::{boxed::Box, rc::Rc, vec::Vec};
+use alloc::{boxed::Box, vec::Vec};
 use tinywasm_types::{Instruction, LocalAddr, WasmFunction};
 
 const CALL_STACK_SIZE: usize = 1024;
@@ -50,7 +50,7 @@ impl CallStack {
 pub(crate) struct CallFrame {
     pub(crate) instr_ptr: usize,
     pub(crate) block_ptr: u32,
-    pub(crate) func_instance: Rc<WasmFunction>,
+    pub(crate) func_instance: WasmFunction,
     pub(crate) locals: Box<[RawWasmValue]>,
 }
 
@@ -112,7 +112,7 @@ impl CallFrame {
 
     #[inline(always)]
     pub(crate) fn new(
-        wasm_func_inst: Rc<WasmFunction>,
+        wasm_func_inst: WasmFunction,
         params: impl ExactSizeIterator<Item = RawWasmValue>,
         block_ptr: u32,
     ) -> Self {
