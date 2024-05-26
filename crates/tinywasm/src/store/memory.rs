@@ -96,15 +96,17 @@ impl MemoryInstance {
         Ok(())
     }
 
-    pub(crate) fn copy_from_slice(&mut self, dst: usize, src: &[u8]) -> Result<()> {
-        let end = dst.checked_add(src.len()).ok_or_else(|| self.trap_oob(dst, src.len()))?;
-        if end > self.data.len() {
-            return Err(self.trap_oob(dst, src.len()));
-        }
+    // needed for copy between different memories
+    //
+    // pub(crate) fn copy_from_slice(&mut self, dst: usize, src: &[u8]) -> Result<()> {
+    //     let end = dst.checked_add(src.len()).ok_or_else(|| self.trap_oob(dst, src.len()))?;
+    //     if end > self.data.len() {
+    //         return Err(self.trap_oob(dst, src.len()));
+    //     }
 
-        self.data[dst..end].copy_from_slice(src);
-        Ok(())
-    }
+    //     self.data[dst..end].copy_from_slice(src);
+    //     Ok(())
+    // }
 
     pub(crate) fn copy_within(&mut self, dst: usize, src: usize, len: usize) -> Result<()> {
         // Calculate the end of the source slice

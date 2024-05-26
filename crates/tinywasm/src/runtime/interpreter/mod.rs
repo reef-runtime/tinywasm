@@ -353,9 +353,9 @@ impl InterpreterRuntime {
         offset: u32,
         mem_addr: u8,
         cf: &CallFrame,
-        module: &mut Instance,
+        instance: &mut Instance,
     ) -> Result<()> {
-        let mem = module.get_mem_mut(mem_addr as u32)?;
+        let mem = instance.get_mem_mut(mem_addr as u32)?;
         let val = const_i32.to_le_bytes();
         let addr: u64 = cf.get_local(local).into();
         mem.store((offset as u64 + addr) as usize, val.len(), &val)?;
@@ -431,14 +431,14 @@ impl InterpreterRuntime {
     }
 
     #[inline(always)]
-    fn exec_global_set(&self, global_index: u32, stack: &mut Stack, module: &mut Instance) -> Result<()> {
-        module.set_global_val(global_index, stack.values.pop()?)?;
+    fn exec_global_set(&self, global_index: u32, stack: &mut Stack, instance: &mut Instance) -> Result<()> {
+        instance.set_global_val(global_index, stack.values.pop()?)?;
         Ok(())
     }
 
     #[inline(always)]
-    fn exec_table_get(&self, table_index: u32, stack: &mut Stack, module: &Instance) -> Result<()> {
-        let table = module.get_table(table_index)?;
+    fn exec_table_get(&self, table_index: u32, stack: &mut Stack, instance: &Instance) -> Result<()> {
+        let table = instance.get_table(table_index)?;
         let idx: u32 = stack.values.pop()?.into();
         let v = table.get_wasm_val(idx)?;
         stack.values.push(v.into());
@@ -446,8 +446,8 @@ impl InterpreterRuntime {
     }
 
     #[inline(always)]
-    fn exec_table_set(&self, table_index: u32, stack: &mut Stack, module: &mut Instance) -> Result<()> {
-        let table = module.get_table_mut(table_index)?;
+    fn exec_table_set(&self, table_index: u32, stack: &mut Stack, instance: &mut Instance) -> Result<()> {
+        let table = instance.get_table_mut(table_index)?;
         let val = stack.values.pop()?.into();
         let idx = stack.values.pop()?.into();
         table.set(idx, val)?;
@@ -462,9 +462,9 @@ impl InterpreterRuntime {
     }
 
     #[inline(always)]
-    fn exec_table_init(&self, elem_index: u32, table_index: u32, module: &mut Instance) -> Result<()> {
-        let table = module.tables.get_mut(table_index as usize).ok_or_else(|| Instance::not_found_error("table"))?;
-        let elem = module.elements.get(elem_index as usize).ok_or_else(|| Instance::not_found_error("element"))?;
+    fn exec_table_init(&self, elem_index: u32, table_index: u32, instance: &mut Instance) -> Result<()> {
+        let table = instance.tables.get_mut_or_instance(table_index, "table")?;
+        let elem = instance.elements.get_or_instance(elem_index, "element")?;
 
         if let ElementKind::Passive = elem.kind {
             return Err(Trap::TableOutOfBounds { offset: 0, len: 0, max: 0 }.into());
@@ -501,12 +501,12 @@ impl InterpreterRuntime {
     }
 
     #[inline(always)]
-    fn exec_memory_grow(&self, addr: u32, byte: u8, stack: &mut Stack, module: &mut Instance) -> Result<()> {
+    fn exec_memory_grow(&self, addr: u32, byte: u8, stack: &mut Stack, instance: &mut Instance) -> Result<()> {
         if unlikely(byte != 0) {
             return Err(Error::UnsupportedFeature("memory.grow with byte != 0".to_string()));
         }
 
-        let mem = module.get_mem_mut(addr)?;
+        let mem = instance.get_mem_mut(addr)?;
         let prev_size = mem.page_count() as i32;
         let pages_delta = stack.values.last_mut()?;
         *pages_delta = match mem.grow(i32::from(*pages_delta)) {
@@ -518,32 +518,32 @@ impl InterpreterRuntime {
     }
 
     #[inline(always)]
-    fn exec_memory_copy(&self, from: u32, to: u32, stack: &mut Stack, module: &mut Instance) -> Result<()> {
+    fn exec_memory_copy(&self, from: u32, to: u32, stack: &mut Stack, instance: &mut Instance) -> Result<()> {
         let size: i32 = stack.values.pop()?.into();
         let src: i32 = stack.values.pop()?.into();
         let dst: i32 = stack.values.pop()?.into();
 
         if from == to {
-            let mem_from = module.get_mem_mut(from)?;
+            let mem_from = instance.get_mem_mut(from)?;
             // copy within the same memory
             mem_from.copy_within(dst as usize, src as usize, size as usize)?;
         } else {
             // copy between two memories
             todo!("Copy between different memories not supported");
-            // let mem_from = module.store.get_mem(from)?;
-            // let mut mem_to = module.store.get_mem_mut(to)?;
+            // let mem_from = instance.get_mem(from)?;
+            // let mut mem_to = instance.get_mem_mut(to)?;
             // mem_to.copy_from_slice(dst as usize, mem_from.load(src as usize, size as usize)?)?;
         }
         Ok(())
     }
 
     #[inline(always)]
-    fn exec_memory_fill(&self, addr: u32, stack: &mut Stack, module: &mut Instance) -> Result<()> {
+    fn exec_memory_fill(&self, addr: u32, stack: &mut Stack, instance: &mut Instance) -> Result<()> {
         let size: i32 = stack.values.pop()?.into();
         let val: i32 = stack.values.pop()?.into();
         let dst: i32 = stack.values.pop()?.into();
 
-        let mem = module.get_mem_mut(addr)?;
+        let mem = instance.get_mem_mut(addr)?;
         mem.fill(dst as usize, size as usize, val as u8)?;
         Ok(())
     }
@@ -554,13 +554,14 @@ impl InterpreterRuntime {
         data_index: u32,
         mem_index: u32,
         stack: &mut Stack,
-        module: &mut Instance,
+        instance: &mut Instance,
     ) -> Result<()> {
         let size = i32::from(stack.values.pop()?) as usize;
         let offset = i32::from(stack.values.pop()?) as usize;
         let dst = i32::from(stack.values.pop()?) as usize;
 
-        let data = match &module.datas.get(data_index as usize).ok_or_else(|| Instance::not_found_error("data"))?.data {
+        let data = match &instance.datas.get(data_index as usize).ok_or_else(|| Instance::not_found_error("data"))?.data
+        {
             Some(data) => data,
             None => return Err(Trap::MemoryOutOfBounds { offset: 0, len: 0, max: 0 }.into()),
         };
@@ -569,7 +570,7 @@ impl InterpreterRuntime {
             return Err(Trap::MemoryOutOfBounds { offset, len: size, max: data.len() }.into());
         }
 
-        let mem = module.memories.get_mut(mem_index as usize).ok_or_else(|| Instance::not_found_error("memory"))?;
+        let mem = instance.memories.get_mut(mem_index as usize).ok_or_else(|| Instance::not_found_error("memory"))?;
         mem.store(dst, size, &data[offset..(offset + size)])?;
         Ok(())
     }
@@ -667,11 +668,11 @@ impl InterpreterRuntime {
         end_offset: u32,
         stack: &mut Stack,
         cf: &mut CallFrame,
-        module: &mut Instance,
+        instance: &mut Instance,
     ) -> Result<()> {
         // truthy value is on the top of the stack, so enter the then block
         if i32::from(stack.values.pop()?) != 0 {
-            self.enter_block(stack, cf.instr_ptr, end_offset, BlockType::If, &args, module);
+            self.enter_block(stack, cf.instr_ptr, end_offset, BlockType::If, &args, instance);
             cf.instr_ptr += 1;
             return Ok(());
         }
@@ -685,7 +686,7 @@ impl InterpreterRuntime {
         let old = cf.instr_ptr;
         cf.instr_ptr += else_offset as usize;
 
-        self.enter_block(stack, old + else_offset as usize, end_offset - else_offset, BlockType::Else, &args, module);
+        self.enter_block(stack, old + else_offset as usize, end_offset - else_offset, BlockType::Else, &args, instance);
 
         cf.instr_ptr += 1;
         Ok(())
