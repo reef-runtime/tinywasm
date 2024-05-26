@@ -215,14 +215,15 @@ impl Instance {
     /// Get the global at the actual index in the store
     #[inline]
     pub fn get_global_val(&self, addr: MemAddr) -> Result<RawWasmValue> {
-        self.globals.get(addr as usize).ok_or_else(|| Self::not_found_error("global")).map(|global| global.value.get())
+        self.globals.get(addr as usize).ok_or_else(|| Self::not_found_error("global")).map(|global| global.value)
     }
 
     /// Set the global at the actual index in the store
     #[inline]
     pub(crate) fn set_global_val(&mut self, addr: MemAddr, value: RawWasmValue) -> Result<()> {
-        let global = self.globals.get(addr as usize).ok_or_else(|| Self::not_found_error("global"));
-        global.map(|global| global.value.set(value))
+        let global = self.globals.get_mut_or_instance(addr, "global")?;
+        global.value = value;
+        Ok(())
     }
 }
 
@@ -335,7 +336,7 @@ impl Instance {
                 let addr = globals.get(*addr as usize).copied().ok_or_else(|| {
                     Error::Other(format!("global {} not found. This should have been caught by the validator", addr))
                 })?;
-                let val: i64 = self.globals[addr as usize].value.get().into();
+                let val: i64 = self.globals[addr as usize].value.into();
 
                 // check if the global is actually a null reference
                 match val < 0 {
@@ -444,7 +445,7 @@ impl Instance {
         use tinywasm_types::ConstInstruction::*;
         let val = match const_instr {
             I32Const(i) => *i,
-            GlobalGet(addr) => i32::from(self.globals[*addr as usize].value.get()),
+            GlobalGet(addr) => i32::from(self.globals[*addr as usize].value),
             _ => return Err(Error::Other("expected i32".to_string())),
         };
         Ok(val)
@@ -469,7 +470,7 @@ impl Instance {
                 })?;
 
                 let global = self.globals.get(*addr as usize).expect("global not found. This should be unreachable");
-                global.value.get()
+                global.value
             }
             RefNull(t) => RawWasmValue::from(t.default_value()),
             RefFunc(idx) => RawWasmValue::from(*module_func_addrs.get(*idx as usize).ok_or_else(|| {

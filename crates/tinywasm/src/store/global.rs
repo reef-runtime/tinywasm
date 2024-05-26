@@ -1,5 +1,3 @@
-use core::cell::Cell;
-
 use alloc::{format, string::ToString};
 use tinywasm_types::*;
 
@@ -10,7 +8,7 @@ use crate::{runtime::RawWasmValue, unlikely, Error, Result};
 /// See <https://webassembly.github.io/spec/core/exec/runtime.html#global-instances>
 #[derive(Debug)]
 pub(crate) struct GlobalInstance {
-    pub(crate) value: Cell<RawWasmValue>,
+    pub(crate) value: RawWasmValue,
     pub(crate) ty: GlobalType,
 }
 
@@ -21,7 +19,7 @@ impl GlobalInstance {
 
     #[inline]
     pub(crate) fn get(&self) -> WasmValue {
-        self.value.get().attach_type(self.ty.ty)
+        self.value.attach_type(self.ty.ty)
     }
 
     pub(crate) fn set(&mut self, val: WasmValue) -> Result<()> {
@@ -37,7 +35,7 @@ impl GlobalInstance {
             return Err(Error::Other("global is immutable".to_string()));
         }
 
-        self.value.set(val.into());
+        self.value = val.into();
         Ok(())
     }
 }
