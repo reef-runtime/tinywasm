@@ -1,8 +1,5 @@
 void reef_log(char *ptr, int bytes_len)
-    __attribute__((__import_module__("reef"), __import_name__("reef_log"),
-                   __warn__unused__result__));
-
-// void print_dummy(char *str_ptr, int length) {}
+    __attribute__((__import_module__("reef"), __import_name__("log"), ));
 
 int reef_strlen(char *ptr) {
   int len = 0;
@@ -18,10 +15,6 @@ int reef_main() {
   int len = reef_strlen(msg);
 
   reef_log(msg, len);
-  // print_dummy(msg, len);
-  //
+
   return 42;
 }
-
-// ENTRYPOINT considered harmful
-// void _start() { main(); }
