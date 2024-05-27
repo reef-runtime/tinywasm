@@ -1,9 +1,10 @@
+use crate::exec::{ExecHandle, ExecHandleTyped, FuncTypeData};
 use crate::{runtime::RawWasmValue, unlikely, Function};
 use alloc::{boxed::Box, format, string::String, string::ToString, vec, vec::Vec};
 use tinywasm_types::{FuncType, ValType, WasmValue};
 
 use crate::runtime::{CallFrame, Stack};
-use crate::{Error, FuncContext, Instance, Result, VecExt};
+use crate::{Error, Instance, Result, VecExt};
 
 #[derive(Debug)]
 /// A function handle
@@ -17,25 +18,10 @@ pub struct FuncHandle<'i> {
     pub name: Option<String>,
 }
 
-#[derive(Debug)]
-pub enum CallResult {
-    Done(Vec<WasmValue>),
-    Incomplete(Stack),
-}
-
-impl<'m> FuncHandle<'m> {
-    /// Call a function (Invocation)
-    ///
-    /// See <https://webassembly.github.io/spec/core/exec/modules.html#invocation>
-    #[inline]
-    pub fn call(&mut self, params: &[WasmValue], stack: Option<Stack>, max_cycles: usize) -> Result<CallResult> {
-        // Comments are ordered by the steps in the spec
-        // In this implementation, some steps are combined and ordered differently for performance reasons
-
-        // 3. Let func_ty be the function type
+impl<'i> FuncHandle<'i> {
+    pub fn call(&'i mut self, params: Vec<WasmValue>) -> Result<ExecHandle<'i>> {
         let func_ty = &self.ty;
 
-        // 4. If the length of the provided argument values is different from the number of expected arguments, then fail
         if unlikely(func_ty.params.len() != params.len()) {
             return Err(Error::Other(format!(
                 "param count mismatch: expected {}, got {}",
@@ -44,50 +30,22 @@ impl<'m> FuncHandle<'m> {
             )));
         }
 
-        // 5. For each value type and the corresponding value, check if types match
-        if !(func_ty.params.iter().zip(params).all(|(ty, param)| ty == &param.val_type())) {
+        if !(func_ty.params.iter().zip(&params).all(|(ty, param)| ty == &param.val_type())) {
             return Err(Error::Other("Type mismatch".into()));
         }
 
-        let func_inst = self.instance.funcs.get_or(self.addr as usize, || Instance::not_found_error("function"))?;
-        let wasm_func = match &func_inst {
-            Function::Host(host_func) => {
-                let ctx = FuncContext { module: &self.instance.module, memories: &mut self.instance.memories };
-                return Ok(CallResult::Done((host_func.func)(ctx, params)?));
-            }
-            Function::Wasm(wasm_func) => wasm_func,
-        };
+        let func = self.instance.funcs.get_or_instance(self.addr, "function")?;
 
-        let mut stack = match stack {
-            None => {
-                // 6. Let f be the dummy frame
-                // 7. Push the frame f to the call stack
-                // & 8. Push the values to the stack (Not needed since the call frame owns the values)
+        let func_data = match &func {
+            Function::Wasm(wasm_func) => {
                 let call_frame_params = params.iter().map(|v| RawWasmValue::from(*v));
                 let call_frame = CallFrame::new(wasm_func.clone(), call_frame_params, 0);
-                Stack::new(call_frame)
+                FuncTypeData::Wasm(Stack::new(call_frame))
             }
-            Some(old_stack) => old_stack,
+            Function::Host(_) => FuncTypeData::Host(params),
         };
 
-        // 9. Invoke the function instance
-        let runtime = crate::runtime::interpreter::Interpreter {};
-        if !runtime.exec(self.instance, &mut stack, max_cycles)? {
-            // panic!("{stack:?}");
-            return Ok(CallResult::Incomplete(stack));
-        }
-
-        // Once the function returns:
-        let result_m = func_ty.results.len();
-
-        // 1. Assert: m values are on the top of the stack (Ensured by validation)
-        assert!(stack.values.len() >= result_m);
-
-        // 2. Pop m values from the stack
-        let res = stack.values.last_n(result_m)?;
-
-        // The values are returned as the results of the invocation.
-        Ok(CallResult::Done(res.iter().zip(func_ty.results.iter()).map(|(v, ty)| v.attach_type(*ty)).collect()))
+        Ok(ExecHandle { func_handle: self, data: func_data })
     }
 }
 
@@ -96,7 +54,7 @@ impl<'m> FuncHandle<'m> {
 pub struct FuncHandleTyped<'i, P, R> {
     /// The underlying function handle
     pub func: FuncHandle<'i>,
-    pub(crate) marker: core::marker::PhantomData<(P, R)>,
+    pub(crate) _marker: core::marker::PhantomData<(P, R)>,
 }
 
 pub trait IntoWasmValueTuple {
@@ -110,24 +68,16 @@ pub trait FromWasmValueTuple {
 }
 
 #[derive(Debug)]
-pub enum CallResultOuter<R: FromWasmValueTuple> {
+pub enum CallResultTyped<R: FromWasmValueTuple> {
     Done(R),
-    Incomplete(Stack),
+    Incomplete,
 }
 
 impl<'i, P: IntoWasmValueTuple, R: FromWasmValueTuple> FuncHandleTyped<'i, P, R> {
-    /// Call a typed function
-    pub fn call(&mut self, params: P, stack: Option<Stack>, max_cycles: usize) -> Result<CallResultOuter<R>> {
-        // Convert params into Vec<WasmValue>
-        let wasm_values = params.into_wasm_value_tuple();
+    pub fn call(&'i mut self, params: P) -> Result<ExecHandleTyped<'i, R>> {
+        let exec_handle = self.func.call(params.into_wasm_value_tuple())?;
 
-        // Call the underlying WASM function
-        let result = self.func.call(&wasm_values, stack, max_cycles)?;
-
-        Ok(match result {
-            CallResult::Done(values) => CallResultOuter::Done(R::from_wasm_value_tuple(&values)?),
-            CallResult::Incomplete(stack) => CallResultOuter::Incomplete(stack),
-        })
+        Ok(ExecHandleTyped { exec_handle, _marker: Default::default() })
     }
 }
 

@@ -4,7 +4,7 @@ use std::str::FromStr;
 use argh::FromArgs;
 // use args::WasmArg;
 use color_eyre::eyre::Result;
-use tinywasm::{CallResultOuter, Instance};
+use tinywasm::{CallResultTyped, Instance};
 use tinywasm::{Extern, FuncContext, MemoryStringExt};
 use tinywasm::{Imports, Module};
 
@@ -108,26 +108,21 @@ fn run(module: Module) -> Result<()> {
     let mut instance = Instance::instantiate(module, imports)?;
 
     let mut main_fn = instance.exported_func::<i32, i32>(entry_fn_name).unwrap();
-    // println!("{main_fn:?}");
-
-    let mut stack = None;
+    let mut exec_handle = main_fn.call(0)?;
 
     let mut cycles = 0;
 
     loop {
         cycles += 1;
 
-        let call_res = main_fn.call(0, stack, max_cycles).unwrap();
+        let run_res = exec_handle.run(max_cycles).unwrap();
 
-        match call_res {
-            CallResultOuter::Done(res) => {
+        match run_res {
+            CallResultTyped::Done(res) => {
                 println!("finished: {res:?}");
                 break;
             }
-            CallResultOuter::Incomplete(new_stack) => {
-                // println!("incomplete execution: {new_stack:?}");
-                stack = Some(new_stack);
-            }
+            CallResultTyped::Incomplete => {}
         }
     }
 

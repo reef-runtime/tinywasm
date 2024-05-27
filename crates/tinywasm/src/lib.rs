@@ -70,28 +70,27 @@
 //!
 //! See the [`Imports`] documentation for more information.
 
-mod std;
 extern crate alloc;
 
+mod std;
+
 mod error;
+mod exec;
+mod func;
+mod imports;
+mod instance;
+mod module;
+mod reference;
+mod runtime;
+mod store;
+
 pub use error::*;
-// pub use func::{FuncHandle, FuncHandleTyped};
 pub use func::*;
 pub use imports::*;
 pub use instance::Instance;
 pub use module::parse_bytes;
 pub use reference::*;
 pub use tinywasm_types::Module;
-
-mod func;
-mod imports;
-mod instance;
-mod module;
-mod reference;
-mod store;
-
-/// Runtime for executing WebAssembly modules.
-pub mod runtime;
 
 #[cfg(feature = "parser")]
 /// Re-export of [`tinywasm_parser`]. Requires `parser` feature.

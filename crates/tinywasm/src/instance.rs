@@ -94,7 +94,7 @@ impl Instance {
         R: FromWasmValueTuple,
     {
         let func = self.exported_func_untyped(name)?;
-        Ok(FuncHandleTyped { func, marker: core::marker::PhantomData })
+        Ok(FuncHandleTyped { func, _marker: core::marker::PhantomData })
     }
 
     /// Get an exported memory by name
