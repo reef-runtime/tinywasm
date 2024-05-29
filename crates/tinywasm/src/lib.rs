@@ -85,6 +85,7 @@ mod runtime;
 mod store;
 
 pub use error::*;
+pub use exec::*;
 pub use func::*;
 pub use imports::*;
 pub use instance::Instance;
