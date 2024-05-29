@@ -1,4 +1,4 @@
-use crate::exec::{ExecHandle, ExecHandleTyped, FuncTypeData};
+use crate::exec::{ExecHandle, ExecHandleTyped};
 use crate::{runtime::RawWasmValue, unlikely, Function};
 use alloc::{boxed::Box, format, string::String, string::ToString, vec, vec::Vec};
 use tinywasm_types::{FuncType, ValType, WasmValue};
@@ -36,16 +36,16 @@ impl FuncHandle {
 
         let func = self.instance.funcs.get_or_instance(self.addr, "function")?;
 
-        let func_data = match &func {
+        let stack = match &func {
             Function::Wasm(wasm_func) => {
                 let call_frame_params = params.iter().map(|v| RawWasmValue::from(*v));
                 let call_frame = CallFrame::new(wasm_func.clone(), call_frame_params, 0);
-                FuncTypeData::Wasm(Stack::new(call_frame))
+                Stack::new(call_frame)
             }
-            Function::Host(_) => FuncTypeData::Host(params),
+            Function::Host(_) => return Err(Error::Other("Can't call Host function directly".to_owned())),
         };
 
-        Ok(ExecHandle { func_handle: self, data: func_data })
+        Ok(ExecHandle { func_handle: self, stack })
     }
 }
 
