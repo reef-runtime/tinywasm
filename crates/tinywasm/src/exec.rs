@@ -15,12 +15,12 @@ pub(crate) enum FuncTypeData {
 }
 
 #[derive(Debug)]
-pub struct ExecHandle<'i> {
-    pub(crate) func_handle: &'i mut FuncHandle<'i>,
+pub struct ExecHandle {
+    pub(crate) func_handle: FuncHandle,
     pub(crate) data: FuncTypeData,
 }
 
-impl<'i> ExecHandle<'i> {
+impl ExecHandle {
     pub fn run(&mut self, max_cycles: usize) -> Result<CallResult> {
         let func = self.func_handle.instance.funcs.get_or_instance(self.func_handle.addr, "function")?;
 
@@ -37,7 +37,7 @@ impl<'i> ExecHandle<'i> {
         };
 
         let runtime = crate::runtime::interpreter::Interpreter {};
-        if !runtime.exec(self.func_handle.instance, stack, max_cycles)? {
+        if !runtime.exec(&mut self.func_handle.instance, stack, max_cycles)? {
             return Ok(CallResult::Incomplete);
         }
 
@@ -58,12 +58,12 @@ impl<'i> ExecHandle<'i> {
 }
 
 #[derive(Debug)]
-pub struct ExecHandleTyped<'i, R: FromWasmValueTuple> {
-    pub(crate) exec_handle: ExecHandle<'i>,
+pub struct ExecHandleTyped<R: FromWasmValueTuple> {
+    pub(crate) exec_handle: ExecHandle,
     pub(crate) _marker: core::marker::PhantomData<R>,
 }
 
-impl<'i, R: FromWasmValueTuple> ExecHandleTyped<'i, R> {
+impl<R: FromWasmValueTuple> ExecHandleTyped<R> {
     pub fn run(&mut self, max_cycles: usize) -> Result<CallResultTyped<R>> {
         // Call the underlying WASM function
         let result = self.exec_handle.run(max_cycles)?;

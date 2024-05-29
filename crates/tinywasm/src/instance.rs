@@ -75,7 +75,7 @@ impl Instance {
     }
 
     /// Get an exported function by name
-    pub fn exported_func_untyped<'i>(&'i mut self, name: &str) -> Result<FuncHandle<'i>> {
+    pub fn exported_func_untyped(self, name: &str) -> Result<FuncHandle> {
         let export = self.export_addr(name).ok_or_else(|| Error::Other(format!("Export not found: {}", name)))?;
         let ExternVal::Func(func_addr) = export else {
             return Err(Error::Other(format!("Export is not a function: {}", name)));
@@ -88,7 +88,7 @@ impl Instance {
     }
 
     /// Get a typed exported function by name
-    pub fn exported_func<P, R>(&mut self, name: &str) -> Result<FuncHandleTyped<P, R>>
+    pub fn exported_func<P, R>(self, name: &str) -> Result<FuncHandleTyped<P, R>>
     where
         P: IntoWasmValueTuple,
         R: FromWasmValueTuple,

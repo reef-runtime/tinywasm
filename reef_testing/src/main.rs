@@ -105,9 +105,9 @@ fn run(module: Module) -> Result<()> {
 
     let entry_fn_name = "reef_main";
 
-    let mut instance = Instance::instantiate(module, imports)?;
+    let instance = Instance::instantiate(module, imports)?;
 
-    let mut main_fn = instance.exported_func::<i32, i32>(entry_fn_name).unwrap();
+    let main_fn = instance.exported_func::<i32, i32>(entry_fn_name).unwrap();
     let mut exec_handle = main_fn.call(0)?;
 
     let mut cycles = 0;

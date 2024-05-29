@@ -8,8 +8,8 @@ use crate::{Error, Instance, Result, VecExt};
 
 #[derive(Debug)]
 /// A function handle
-pub struct FuncHandle<'i> {
-    pub(crate) instance: &'i mut Instance,
+pub struct FuncHandle {
+    pub(crate) instance: Instance,
 
     pub(crate) addr: u32,
     pub(crate) ty: FuncType,
@@ -18,8 +18,8 @@ pub struct FuncHandle<'i> {
     pub name: Option<String>,
 }
 
-impl<'i> FuncHandle<'i> {
-    pub fn call(&'i mut self, params: Vec<WasmValue>) -> Result<ExecHandle<'i>> {
+impl FuncHandle {
+    pub fn call(self, params: Vec<WasmValue>) -> Result<ExecHandle> {
         let func_ty = &self.ty;
 
         if unlikely(func_ty.params.len() != params.len()) {
@@ -51,9 +51,9 @@ impl<'i> FuncHandle<'i> {
 
 #[derive(Debug)]
 /// A typed function handle
-pub struct FuncHandleTyped<'i, P, R> {
+pub struct FuncHandleTyped<P, R> {
     /// The underlying function handle
-    pub func: FuncHandle<'i>,
+    pub func: FuncHandle,
     pub(crate) _marker: core::marker::PhantomData<(P, R)>,
 }
 
@@ -73,8 +73,8 @@ pub enum CallResultTyped<R: FromWasmValueTuple> {
     Incomplete,
 }
 
-impl<'i, P: IntoWasmValueTuple, R: FromWasmValueTuple> FuncHandleTyped<'i, P, R> {
-    pub fn call(&'i mut self, params: P) -> Result<ExecHandleTyped<'i, R>> {
+impl<P: IntoWasmValueTuple, R: FromWasmValueTuple> FuncHandleTyped<P, R> {
+    pub fn call(self, params: P) -> Result<ExecHandleTyped<R>> {
         let exec_handle = self.func.call(params.into_wasm_value_tuple())?;
 
         Ok(ExecHandleTyped { exec_handle, _marker: Default::default() })
