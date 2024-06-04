@@ -1,15 +1,18 @@
 use alloc::{format, string::ToString};
+
+use rkyv::Deserialize;
+
 use tinywasm_types::*;
 
 use crate::func::{FromWasmValueTuple, IntoWasmValueTuple};
-use crate::runtime::RawWasmValue;
+use crate::runtime::{RawWasmValue, Stack};
 use crate::{
     store::*, Error, Extern, FuncHandle, FuncHandleTyped, Function, Imports, LinkingError, MemoryRef, MemoryRefMut,
-    ResolvedImports, Result, Trap, VecExt,
+    ResolvedImports, Result, SerializationState, Trap, VecExt, CALL_STACK_SIZE,
 };
 
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Instance {
     pub(crate) module: Module,
 
@@ -24,15 +27,7 @@ pub struct Instance {
 impl Instance {
     /// Instantiate the module in the given store
     pub fn instantiate(module: Module, imports: Imports) -> Result<Self> {
-        let mut instance = Instance {
-            module,
-            funcs: Default::default(),
-            tables: Default::default(),
-            memories: Default::default(),
-            globals: Default::default(),
-            elements: Default::default(),
-            datas: Default::default(),
-        };
+        let mut instance = Instance { module, ..Default::default() };
 
         let mut addrs = instance.resolve_imports(imports)?;
 
@@ -56,11 +51,18 @@ impl Instance {
         Ok(instance)
     }
 
-    // pub fn instantiate_start(module: Module, imports: Imports, max_cycles: usize) -> Result<Self> {
-    //     let mut instance = Self::instantiate(module, imports)?;
-    //     let _ = instance.start(max_cycles)?;
-    //     Ok(instance)
-    // }
+    pub fn instantiate_with_state(module: Module, imports: Imports, state: &[u8]) -> Result<(Self, Stack)> {
+        let mut instance = Self::instantiate(module, imports)?;
+
+        let archived = rkyv::check_archived_root::<SerializationState>(state).unwrap();
+        let mut state: SerializationState = archived.deserialize(&mut rkyv::Infallible).unwrap();
+        state.stack.call_stack.0.reserve_exact(CALL_STACK_SIZE);
+
+        instance.memories[0].data = state.memory;
+        instance.globals.iter_mut().zip(state.globals.iter()).for_each(|(g, v)| g.value = *v);
+
+        Ok((instance, state.stack))
+    }
 
     /// Get a export by name
     pub(crate) fn export_addr(&self, name: &str) -> Option<ExternVal> {
@@ -128,46 +130,6 @@ impl Instance {
         let mem = self.get_mem_mut(addr)?;
         Ok(MemoryRefMut { instance: mem })
     }
-
-    // /// Get the start function of the module
-    // ///
-    // /// Returns None if the module has no start function
-    // /// If no start function is specified, also checks for a _start function in the exports
-    // ///
-    // /// See <https://webassembly.github.io/spec/core/syntax/modules.html#start-function>
-    // pub fn start_func(&mut self) -> Result<Option<FuncHandle<'_>>> {
-    //     let func_index = match self.module.start_func {
-    //         Some(func_index) => func_index,
-    //         None => {
-    //             // alternatively, check for a _start function in the exports
-    //             let Some(ExternVal::Func(func_addr)) = self.export_addr("_start") else {
-    //                 return Ok(None);
-    //             };
-
-    //             func_addr
-    //         }
-    //     };
-
-    //     // let func_addr = self.func_addrs.get(func_index as usize).expect("No func addr for start func, this is a bug");
-    //     let func_inst = self.get_func(func_index)?;
-    //     let ty = func_inst.func.ty();
-
-    //     Ok(Some(FuncHandle { addr: func_index, ty: ty.clone(), name: None, instance: self }))
-    // }
-
-    // /// Invoke the start function of the module
-    // ///
-    // /// Returns None if the module has no start function
-    // ///
-    // /// See <https://webassembly.github.io/spec/core/syntax/modules.html#syntax-start>
-    // pub fn start(&mut self, max_cycles: usize) -> Result<Option<()>> {
-    //     let Some(mut func) = self.start_func()? else {
-    //         return Ok(None);
-    //     };
-
-    //     let _ = func.call(&[], None, max_cycles)?;
-    //     Ok(Some(()))
-    // }
 }
 
 impl Instance {

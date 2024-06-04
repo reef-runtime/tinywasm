@@ -13,20 +13,23 @@ name = "tinywasm"
 path = "src/lib.rs"
 
 [dependencies]
-tinywasm-parser = { version = "0.7.0", path = "../parser", default-features = false, optional = true }
-tinywasm-types = { version = "0.7.0", path = "../types", default-features = false }
+tinywasm-parser = { version = "0.7.0", path = "../parser" }
+tinywasm-types = { version = "0.7.0", path = "../types" }
 libm = { version = "0.2", default-features = false }
+rkyv = { version = "0.7.44", default-features = false, features = [
+    "size_32",
+    "validation",
+] }
+bytecheck = { version = "0.7" }
 
 [dev-dependencies]
 wast = { version = "208.0" }
-owo-colors = { version = "4.0" }
+# owo-colors = { version = "4.0" }
 eyre = { version = "0.6" }
 serde_json = { version = "1.0" }
 serde = { version = "1.0", features = ["derive"] }
 
 [features]
-default = ["std", "parser", "archive"]
-std = ["tinywasm-parser?/std", "tinywasm-types/std"]
-parser = ["tinywasm-parser"]
-archive = ["tinywasm-types/archive"]
+default = ["std"]
+std = ["tinywasm-parser/std", "tinywasm-types/std"]
 nightly = []

@@ -8,13 +8,12 @@ authors.workspace = true
 repository.workspace = true
 
 [dependencies]
-rkyv = { version = "0.7", optional = true, default-features = false, features = [
+rkyv = { version = "0.7.44", default-features = false, features = [
     "size_32",
     "validation",
 ] }
 bytecheck = { version = "0.7", optional = true }
 
 [features]
-default = ["archive"]
-std = ["rkyv?/std"]
-archive = ["dep:rkyv", "dep:bytecheck"]
+# default = []
+std = ["rkyv/std"]

@@ -1,16 +1,16 @@
 use super::{FuncAddr, GlobalAddr, LabelAddr, LocalAddr, TableAddr, TypeAddr, ValType};
 use crate::{DataAddr, ElemAddr, MemAddr};
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "archive", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize), archive(check_bytes))]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
 pub enum BlockArgs {
     Empty,
     Type(ValType),
     FuncType(u32),
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "archive", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize), archive(check_bytes))]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
 /// A packed representation of BlockArgs
 /// This is needed to keep the size of the Instruction enum small.
 /// Sadly, using #[repr(u8)] on BlockArgs itself is not possible because of the FuncType variant.
@@ -46,8 +46,8 @@ impl From<BlockArgsPacked> for BlockArgs {
 }
 
 /// Represents a memory immediate in a WebAssembly memory instruction.
-#[derive(Debug, Copy, Clone, PartialEq)]
-#[cfg_attr(feature = "archive", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize), archive(check_bytes))]
+#[derive(Debug, Copy, Clone, PartialEq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
 pub struct MemoryArg {
     pub offset: u64,
     pub mem_addr: MemAddr,
@@ -58,8 +58,8 @@ type BrTableLen = u32;
 type EndOffset = u32;
 type ElseOffset = u32;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "archive", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize), archive(check_bytes))]
+#[derive(Debug, Clone, Copy, PartialEq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
 pub enum ConstInstruction {
     I32Const(i32),
     I64Const(i64),
@@ -81,8 +81,8 @@ pub enum ConstInstruction {
 ///   This makes it easier to implement the label stack iteratively.
 ///
 /// See <https://webassembly.github.io/spec/core/binary/instructions.html>
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "archive", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize), archive(check_bytes))]
+#[derive(Debug, Clone, PartialEq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
 // should be kept as small as possible (16 bytes max)
 #[rustfmt::skip]
 #[non_exhaustive]

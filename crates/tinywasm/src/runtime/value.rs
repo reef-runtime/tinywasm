@@ -6,7 +6,8 @@ use tinywasm_types::{ValType, WasmValue};
 /// This is the internal representation of all wasm values
 ///
 /// See [`WasmValue`] for the public representation.
-#[derive(Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Default, PartialEq, Eq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
 pub struct RawWasmValue([u8; 8]);
 
 impl Debug for RawWasmValue {

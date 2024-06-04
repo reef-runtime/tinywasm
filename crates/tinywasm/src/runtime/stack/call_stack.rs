@@ -1,15 +1,14 @@
+use std::hint::unreachable_unchecked;
+
 use crate::runtime::{BlockType, RawWasmValue};
-use crate::{cold, unlikely};
+use crate::{cold, unlikely, Function, CALL_STACK_SIZE};
 use crate::{Error, Result, Trap};
 use alloc::{boxed::Box, vec::Vec};
-use tinywasm_types::{Instruction, LocalAddr, WasmFunction};
+use tinywasm_types::{FuncAddr, Instruction, LocalAddr, WasmFunction};
 
-const CALL_STACK_SIZE: usize = 1024;
-
-#[derive(Debug)]
-pub(crate) struct CallStack {
-    stack: Vec<CallFrame>,
-}
+#[derive(Debug, Clone, PartialEq, Eq, Default, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
+pub(crate) struct CallStack(pub Vec<CallFrame>);
 
 impl CallStack {
     #[inline]
@@ -17,17 +16,17 @@ impl CallStack {
         let mut stack = Vec::new();
         stack.reserve_exact(CALL_STACK_SIZE);
         stack.push(initial_frame);
-        Self { stack }
+        Self(stack)
     }
 
     #[inline]
     pub(crate) fn is_empty(&self) -> bool {
-        self.stack.is_empty()
+        self.0.is_empty()
     }
 
     #[inline(always)]
     pub(crate) fn pop(&mut self) -> Result<CallFrame> {
-        match self.stack.pop() {
+        match self.0.pop() {
             Some(frame) => Ok(frame),
             None => {
                 cold();
@@ -38,27 +37,39 @@ impl CallStack {
 
     #[inline(always)]
     pub(crate) fn push(&mut self, call_frame: CallFrame) -> Result<()> {
-        if unlikely(self.stack.len() >= self.stack.capacity()) {
+        if unlikely(self.0.len() >= self.0.capacity()) {
             return Err(Trap::CallStackOverflow.into());
         }
-        self.stack.push(call_frame);
+        self.0.push(call_frame);
         Ok(())
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
 pub(crate) struct CallFrame {
     pub(crate) instr_ptr: usize,
     pub(crate) block_ptr: u32,
-    pub(crate) func_instance: WasmFunction,
+    pub(crate) func_instance: FuncAddr,
     pub(crate) locals: Box<[RawWasmValue]>,
 }
 
 impl CallFrame {
     #[inline(always)]
-    pub(crate) fn fetch_instr(&self) -> &Instruction {
-        match self.func_instance.instructions.get(self.instr_ptr) {
-            Some(instr) => instr,
+    pub(crate) fn fetch_instr(&self, funcs: &[Function]) -> Instruction {
+        // SAFETY: this is verified by the parser/validator
+        let func = unsafe { funcs.get_unchecked(self.func_instance as usize) };
+        let wasm_func = match func {
+            Function::Wasm(wasm_func) => wasm_func,
+            Function::Host(_) => {
+                // SAFETY: we can never attempt to fetch an instruction for a Host function
+                // because this type can only be constructed through an interface that requires
+                // a WasmFunction.
+                unsafe { unreachable_unchecked() }
+            }
+        };
+        match wasm_func.instructions.get(self.instr_ptr) {
+            Some(instr) => instr.clone(),
             None => {
                 cold();
                 panic!("Instruction pointer out of bounds");
@@ -112,12 +123,13 @@ impl CallFrame {
 
     #[inline(always)]
     pub(crate) fn new(
-        wasm_func_inst: WasmFunction,
+        wasm_func_addr: FuncAddr,
+        wasm_func: &WasmFunction,
         params: impl ExactSizeIterator<Item = RawWasmValue>,
         block_ptr: u32,
     ) -> Self {
         let locals = {
-            let total_size = wasm_func_inst.locals.len() + params.len();
+            let total_size = wasm_func.locals.len() + params.len();
             let mut locals = Vec::new();
             locals.reserve_exact(total_size);
             locals.extend(params);
@@ -125,7 +137,7 @@ impl CallFrame {
             locals.into_boxed_slice()
         };
 
-        Self { instr_ptr: 0, func_instance: wasm_func_inst, locals, block_ptr }
+        Self { instr_ptr: 0, func_instance: wasm_func_addr, locals, block_ptr }
     }
 
     #[inline(always)]
@@ -139,7 +151,16 @@ impl CallFrame {
     }
 
     #[inline(always)]
-    pub(crate) fn instructions(&self) -> &[Instruction] {
-        &self.func_instance.instructions
+    pub(crate) fn instructions<'a>(&self, funcs: &'a [Function]) -> &'a [Instruction] {
+        // SAFETY: this is verified by the parser/validator
+        let func = unsafe { funcs.get_unchecked(self.func_instance as usize) };
+        &match func {
+            Function::Wasm(wasm_func) => wasm_func,
+            Function::Host(_) => {
+                // SAFETY: this is verified by the parser/validator
+                unsafe { unreachable_unchecked() }
+            }
+        }
+        .instructions
     }
 }

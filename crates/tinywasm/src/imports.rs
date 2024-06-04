@@ -194,32 +194,6 @@ impl From<&Import> for ExternName {
 ///
 /// This is used to link a module instance to its imports
 ///
-/// ## Example
-/// ```rust
-/// # fn main() -> tinywasm::Result<()> {
-/// use tinywasm::{Imports, Extern};
-/// use tinywasm::types::{ValType, TableType, MemoryType, WasmValue};
-/// let mut imports = Imports::new();
-///
-/// // function args can be either a single
-/// // value that implements `TryFrom<WasmValue>` or a tuple of them
-/// let print_i32 = Extern::typed_func(|_ctx: tinywasm::FuncContext<'_>, arg: i32| {
-///     Ok(())
-/// });
-///
-/// let table_type = TableType::new(ValType::RefFunc, 10, Some(20));
-/// let table_init = WasmValue::default_for(ValType::RefFunc);
-///
-/// imports
-///     .define("my_module", "print_i32", print_i32)?
-///     .define("my_module", "table", Extern::table(table_type, table_init))?
-///     .define("my_module", "memory", Extern::memory(MemoryType::new_32(1, Some(2))))?
-///     .define("my_module", "global_i32", Extern::global(WasmValue::I32(666), false))?
-///     .link_module("my_other_module", 0)?;
-/// # Ok(())
-/// # }
-/// ```
-///
 /// Note that module instance addresses for [`Imports::link_module`] can be obtained from [`crate::ModuleInstance::id`].
 /// Now, the imports object can be passed to [`crate::ModuleInstance::instantiate`].
 

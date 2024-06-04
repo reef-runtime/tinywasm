@@ -19,7 +19,7 @@ pub struct FuncHandle {
 }
 
 impl FuncHandle {
-    pub fn call(self, params: Vec<WasmValue>) -> Result<ExecHandle> {
+    pub fn call(self, params: Vec<WasmValue>, stack: Option<Stack>) -> Result<ExecHandle> {
         let func_ty = &self.ty;
 
         if unlikely(func_ty.params.len() != params.len()) {
@@ -36,13 +36,16 @@ impl FuncHandle {
 
         let func = self.instance.funcs.get_or_instance(self.addr, "function")?;
 
-        let stack = match &func {
-            Function::Wasm(wasm_func) => {
-                let call_frame_params = params.iter().map(|v| RawWasmValue::from(*v));
-                let call_frame = CallFrame::new(wasm_func.clone(), call_frame_params, 0);
-                Stack::new(call_frame)
-            }
-            Function::Host(_) => return Err(Error::Other("Can't call Host function directly".to_owned())),
+        let stack = match stack {
+            Some(stack) => stack,
+            None => match &func {
+                Function::Wasm(wasm_func) => {
+                    let call_frame_params = params.iter().map(|v| RawWasmValue::from(*v));
+                    let call_frame = CallFrame::new(self.addr, wasm_func, call_frame_params, 0);
+                    Stack::new(call_frame)
+                }
+                Function::Host(_) => return Err(Error::Other("Can't call Host function directly".to_owned())),
+            },
         };
 
         Ok(ExecHandle { func_handle: self, stack })
@@ -74,8 +77,8 @@ pub enum CallResultTyped<R: FromWasmValueTuple> {
 }
 
 impl<P: IntoWasmValueTuple, R: FromWasmValueTuple> FuncHandleTyped<P, R> {
-    pub fn call(self, params: P) -> Result<ExecHandleTyped<R>> {
-        let exec_handle = self.func.call(params.into_wasm_value_tuple())?;
+    pub fn call(self, params: P, stack: Option<Stack>) -> Result<ExecHandleTyped<R>> {
+        let exec_handle = self.func.call(params.into_wasm_value_tuple(), stack)?;
 
         Ok(ExecHandleTyped { exec_handle, _marker: Default::default() })
     }

@@ -6,7 +6,7 @@
 #![allow(unexpected_cfgs, clippy::reserve_after_initialization)]
 // #![warn(missing_docs, missing_debug_implementations, rust_2018_idioms, unreachable_pub)]
 #![cfg_attr(nightly, feature(error_in_core))]
-#![forbid(unsafe_code)]
+// #![forbid(unsafe_code)]
 
 //! A tiny WebAssembly Runtime written in Rust
 //!
@@ -31,34 +31,6 @@
 //! The easiest way to get started is to use the [`Module::parse_bytes`] function to load a
 //! WebAssembly module from bytes. This will parse the module and validate it, returning
 //! a [`Module`] that can be used to instantiate the module.
-//!
-//!
-//! ```rust
-//! use tinywasm::{Store, Module};
-//!
-//! // Load a module from bytes
-//! let wasm = include_bytes!("../../../examples/wasm/add.wasm");
-//! let module = Module::parse_bytes(wasm)?;
-//!
-//! // Create a new store
-//! // Stores are used to allocate objects like functions and globals
-//! let mut store = Store::default();
-//!
-//! // Instantiate the module
-//! // This will allocate the module and its globals into the store
-//! // and execute the module's start function.
-//! // Every ModuleInstance has its own ID space for functions, globals, etc.
-//! let instance = module.instantiate(&mut store, None)?;
-//!
-//! // Get a typed handle to the exported "add" function
-//! // Alternatively, you can use `instance.get_func` to get an untyped handle
-//! // that takes and returns [`WasmValue`]s
-//! let func = instance.exported_func::<(i32, i32), i32>(&mut store, "add")?;
-//! let res = func.call(&mut store, (1, 2))?;
-//!
-//! assert_eq!(res, 3);
-//! # Ok::<(), tinywasm::Error>(())
-//! ```
 //!
 //! For more examples, see the [`examples`](https://github.com/explodingcamera/tinywasm/tree/main/examples) directory.
 //!
@@ -93,7 +65,8 @@ pub use module::parse_bytes;
 pub use reference::*;
 pub use tinywasm_types::Module;
 
-#[cfg(feature = "parser")]
+pub(crate) const CALL_STACK_SIZE: usize = 1024;
+
 /// Re-export of [`tinywasm_parser`]. Requires `parser` feature.
 pub mod parser {
     pub use tinywasm_parser::*;

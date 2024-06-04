@@ -1,8 +1,9 @@
 use crate::{cold, unlikely, Error, Result};
 use alloc::vec::Vec;
 
-#[derive(Debug, Clone)]
-pub(crate) struct BlockStack(Vec<BlockFrame>);
+#[derive(Debug, Clone, PartialEq, Eq, Default, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
+pub(crate) struct BlockStack(pub Vec<BlockFrame>);
 
 impl BlockStack {
     pub(crate) fn new() -> Self {
@@ -50,7 +51,8 @@ impl BlockStack {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
 pub(crate) struct BlockFrame {
     pub(crate) instr_ptr: usize, // position of the instruction pointer when the block was entered
     pub(crate) end_instr_offset: u32, // position of the end instruction of the block
@@ -61,10 +63,9 @@ pub(crate) struct BlockFrame {
     pub(crate) ty: BlockType,
 }
 
-impl BlockFrame {}
-
-#[derive(Debug, Copy, Clone)]
-#[allow(dead_code)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+// #[allow(dead_code)]
+#[archive(check_bytes)]
 pub(crate) enum BlockType {
     Loop,
     If,

@@ -1,6 +1,12 @@
+use core::mem::take;
+use std::io;
+
 use tinywasm_types::WasmValue;
 
-use crate::{runtime::Stack, CallResultTyped, FromWasmValueTuple, FuncHandle, Result};
+use crate::{
+    runtime::{RawWasmValue, Stack},
+    CallResultTyped, FromWasmValueTuple, FuncHandle, Result,
+};
 
 #[derive(Debug)]
 pub enum CallResult {
@@ -35,6 +41,19 @@ impl ExecHandle {
             res.iter().zip(self.func_handle.ty.results.iter()).map(|(v, ty)| v.attach_type(*ty)).collect(),
         ))
     }
+
+    pub fn serialize(&mut self) -> Result<Vec<u8>> {
+        let memory = &mut self.func_handle.instance.memories[0];
+        let globals = self.func_handle.instance.globals.iter().map(|g| g.value).collect();
+        let data = SerializationState { stack: take(&mut self.stack), memory: take(&mut memory.data), globals };
+
+        let bytes: Vec<_> = rkyv::to_bytes::<_, 0x10000>(&data).map_err(io::Error::other)?.into();
+
+        memory.data = data.memory;
+        self.stack = data.stack;
+
+        Ok(bytes)
+    }
 }
 
 #[derive(Debug)]
@@ -53,4 +72,16 @@ impl<R: FromWasmValueTuple> ExecHandleTyped<R> {
             CallResult::Incomplete => CallResultTyped::Incomplete,
         })
     }
+
+    pub fn serialize(&mut self) -> Result<Vec<u8>> {
+        self.exec_handle.serialize()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
+pub(crate) struct SerializationState {
+    pub(crate) stack: Stack,
+    pub(crate) memory: Vec<u8>,
+    pub(crate) globals: Vec<RawWasmValue>,
 }

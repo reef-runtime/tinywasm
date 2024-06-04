@@ -2,7 +2,6 @@ use alloc::string::{String, ToString};
 use core::fmt::Display;
 use tinywasm_types::FuncType;
 
-#[cfg(feature = "parser")]
 pub use tinywasm_parser::ParseError;
 
 /// Errors that can occur for TinyWasm operations
@@ -42,7 +41,6 @@ pub enum Error {
     /// An I/O error occurred
     Io(crate::std::io::Error),
 
-    #[cfg(feature = "parser")]
     /// A parsing error occurred
     ParseError(ParseError),
 }
@@ -166,22 +164,28 @@ impl LinkingError {
     }
 }
 
-impl From<LinkingError> for Error {
-    fn from(value: LinkingError) -> Self {
-        Self::Linker(value)
-    }
-}
-
 impl From<Trap> for Error {
     fn from(value: Trap) -> Self {
         Self::Trap(value)
     }
 }
 
+impl From<LinkingError> for Error {
+    fn from(value: LinkingError) -> Self {
+        Self::Linker(value)
+    }
+}
+
+#[cfg(feature = "std")]
+impl From<std::io::Error> for Error {
+    fn from(value: std::io::Error) -> Self {
+        Self::Io(value)
+    }
+}
+
 impl Display for Error {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            #[cfg(feature = "parser")]
             Self::ParseError(err) => write!(f, "error parsing module: {:?}", err),
 
             #[cfg(feature = "std")]
@@ -240,7 +244,6 @@ impl Display for Trap {
 #[cfg(any(feature = "std", all(not(feature = "std"), nightly)))]
 impl crate::std::error::Error for Error {}
 
-#[cfg(feature = "parser")]
 impl From<tinywasm_parser::ParseError> for Error {
     fn from(value: tinywasm_parser::ParseError) -> Self {
         Self::ParseError(value)

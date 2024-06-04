@@ -10,8 +10,8 @@
 // This is a bit hard to see from the spec, but it's vaild to use breaks to return
 // from a function, so we need to check if the label stack is empty
 macro_rules! break_to {
-    ($cf:ident, $stack:ident, $module:ident, $store:ident, $break_to_relative:ident) => {{
-        if $cf.break_to(*$break_to_relative, &mut $stack.values, &mut $stack.blocks).is_none() {
+    ($cf:ident, $stack:ident, $module:ident, $store:ident, $break_to_relative:expr) => {{
+        if $cf.break_to($break_to_relative, &mut $stack.values, &mut $stack.blocks).is_none() {
             if $stack.call_stack.is_empty() {
                 return Ok(true);
             }
@@ -55,7 +55,7 @@ macro_rules! mem_load {
         }
 
         let (mem_addr, offset) = $arg;
-        mem_load_inner(&$module, $stack, *mem_addr, *offset)?;
+        mem_load_inner(&$module, $stack, mem_addr, offset)?;
     }};
 }
 
@@ -82,7 +82,7 @@ macro_rules! mem_store {
         }
 
         let (mem_addr, offset) = $arg;
-        mem_store_inner(&mut $module, $stack, *mem_addr, *offset)?;
+        mem_store_inner(&mut $module, $stack, mem_addr, offset)?;
     }};
 }
 

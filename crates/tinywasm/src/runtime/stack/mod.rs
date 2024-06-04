@@ -7,7 +7,8 @@ pub(crate) use block_stack::{BlockFrame, BlockStack, BlockType};
 pub(crate) use call_stack::CallFrame;
 
 /// A WebAssembly Stack
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
 pub struct Stack {
     pub(crate) values: ValueStack,
     pub(crate) blocks: BlockStack,
