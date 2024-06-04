@@ -1,3 +1,5 @@
+use std::num::Wrapping;
+
 mod reef {
     #[link(wasm_import_module = "reef")]
     extern "C" {
@@ -48,8 +50,8 @@ fn run(dataset: &[u8]) {
     reef::reef_log(&format!("out2: {}", run_test_trait1(the_struct)));
 
     const NUM: usize = 100_000;
-    let mut a = 0;
-    let mut b = 1;
+    let mut a = Wrapping(0);
+    let mut b = Wrapping(1);
     for i in 0..NUM {
         if i % 2000 == 0 {
             reef::reef_log(&format!("{b}"));
@@ -58,6 +60,10 @@ fn run(dataset: &[u8]) {
         let c = a + b;
         a = b;
         b = c;
+    }
+
+    if dataset[0] == 42 {
+        panic!("LOL");
     }
 }
 

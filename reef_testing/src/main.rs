@@ -28,6 +28,9 @@ struct Run {
     /// wasm file to run
     #[argh(positional)]
     wasm_file: String,
+
+    #[argh(positional)]
+    wasm_arg: i32,
 }
 
 fn main() -> Result<()> {
@@ -38,22 +41,22 @@ fn main() -> Result<()> {
     let cwd = std::env::current_dir()?;
 
     match args.nested {
-        TinyWasmSubcommand::Run(Run { wasm_file }) => {
+        TinyWasmSubcommand::Run(Run { wasm_file, wasm_arg }) => {
             let path = cwd.join(wasm_file.clone());
             let module_bytes = match wasm_file.ends_with(".wat") {
                 true => return Err(color_eyre::eyre::eyre!("wat support is not enabled in this build")),
                 false => &std::fs::read(path)?,
             };
 
-            run(module_bytes)
+            run(module_bytes, wasm_arg)
         }
     }
 }
 
-const MAX_CYCLES: usize = 2000;
+const MAX_CYCLES: usize = 5000;
 const ENTRY_NAME: &str = "reef_main";
 
-fn run(module_bytes: &[u8]) -> Result<()> {
+fn run(module_bytes: &[u8], arg: i32) -> Result<()> {
     let mut serialized_state: Option<AlignedVec> = None;
     let mut cycles = 0;
 
@@ -102,9 +105,9 @@ fn run(module_bytes: &[u8]) -> Result<()> {
         };
 
         let main_fn = instance.exported_func::<i32, i32>(ENTRY_NAME).unwrap();
-        let mut exec_handle = main_fn.call(0, stack)?;
+        let mut exec_handle = main_fn.call(arg, stack)?;
 
-        let run_res = exec_handle.run(MAX_CYCLES).unwrap();
+        let run_res = exec_handle.run(MAX_CYCLES)?;
 
         match run_res {
             CallResultTyped::Done(res) => {
