@@ -1,6 +1,13 @@
 use core::mem::take;
 use std::io;
 
+use rkyv::{
+    ser::{
+        serializers::{AlignedSerializer, CompositeSerializer, HeapScratch, SharedSerializeMap},
+        Serializer,
+    },
+    AlignedVec,
+};
 use tinywasm_types::WasmValue;
 
 use crate::{
@@ -42,17 +49,22 @@ impl ExecHandle {
         ))
     }
 
-    pub fn serialize(&mut self) -> Result<Vec<u8>> {
+    pub fn serialize(&mut self, buf: AlignedVec) -> Result<AlignedVec> {
         let memory = &mut self.func_handle.instance.memories[0];
         let globals = self.func_handle.instance.globals.iter().map(|g| g.value).collect();
         let data = SerializationState { stack: take(&mut self.stack), memory: take(&mut memory.data), globals };
 
-        let bytes: Vec<_> = rkyv::to_bytes::<_, 0x10000>(&data).map_err(io::Error::other)?.into();
+        let mut serializer = CompositeSerializer::new(
+            AlignedSerializer::new(buf),
+            HeapScratch::<0x1000>::new(),
+            SharedSerializeMap::new(),
+        );
+        serializer.serialize_value(&data).map_err(io::Error::other)?;
 
         memory.data = data.memory;
         self.stack = data.stack;
 
-        Ok(bytes)
+        Ok(serializer.into_serializer().into_inner())
     }
 }
 
@@ -73,8 +85,8 @@ impl<R: FromWasmValueTuple> ExecHandleTyped<R> {
         })
     }
 
-    pub fn serialize(&mut self) -> Result<Vec<u8>> {
-        self.exec_handle.serialize()
+    pub fn serialize(&mut self, buf: AlignedVec) -> Result<AlignedVec> {
+        self.exec_handle.serialize(buf)
     }
 }
 

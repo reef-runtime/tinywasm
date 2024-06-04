@@ -2,11 +2,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 use tinywasm_types::MemoryType;
 
-use crate::{Error, Result};
-
-const PAGE_SIZE: usize = 65536;
-const MAX_PAGES: usize = 65536;
-const MAX_SIZE: u64 = PAGE_SIZE as u64 * MAX_PAGES as u64;
+use crate::{Error, Result, MAX_PAGES, MAX_SIZE, PAGE_SIZE};
 
 /// A WebAssembly Memory Instance
 ///

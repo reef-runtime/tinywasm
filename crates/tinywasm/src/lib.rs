@@ -67,6 +67,10 @@ pub use tinywasm_types::Module;
 
 pub(crate) const CALL_STACK_SIZE: usize = 1024;
 
+pub const PAGE_SIZE: usize = 65536;
+pub const MAX_PAGES: usize = 65536;
+const MAX_SIZE: u64 = PAGE_SIZE as u64 * MAX_PAGES as u64;
+
 /// Re-export of [`tinywasm_parser`]. Requires `parser` feature.
 pub mod parser {
     pub use tinywasm_parser::*;

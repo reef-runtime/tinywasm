@@ -3,9 +3,10 @@ use std::io;
 use argh::FromArgs;
 // use args::WasmArg;
 use color_eyre::eyre::Result;
-use tinywasm::Imports;
+use rkyv::AlignedVec;
 use tinywasm::{CallResultTyped, Instance};
 use tinywasm::{Extern, FuncContext, MemoryStringExt};
+use tinywasm::{Imports, PAGE_SIZE};
 
 #[derive(FromArgs)]
 /// TinyWasm CLI
@@ -53,7 +54,7 @@ const MAX_CYCLES: usize = 200;
 const ENTRY_NAME: &str = "reef_main";
 
 fn run(module_bytes: &[u8]) -> Result<()> {
-    let mut serialized_state: Option<Vec<u8>> = None;
+    let mut serialized_state: Option<AlignedVec> = None;
     let mut cycles = 0;
 
     loop {
@@ -89,7 +90,8 @@ fn run(module_bytes: &[u8]) -> Result<()> {
             }),
         )?;
 
-        let (instance, stack) = match serialized_state {
+        // this clone will not be happening in the final loop
+        let (instance, stack) = match serialized_state.take() {
             None => (Instance::instantiate(module, imports)?, None),
             Some(state) => {
                 let (instance, stack) = Instance::instantiate_with_state(module, imports, &state)?;
@@ -110,9 +112,11 @@ fn run(module_bytes: &[u8]) -> Result<()> {
                 break Ok(());
             }
             CallResultTyped::Incomplete => {
-                let state = exec_handle.serialize()?;
-                // println!("serialized {} bytes", state.len());
-                serialized_state = Some(state);
+                if serialized_state.is_none() {
+                    serialized_state = Some(AlignedVec::with_capacity(PAGE_SIZE * 2));
+                }
+                serialized_state = Some(exec_handle.serialize(serialized_state.take().unwrap())?);
+                println!("serialized {} bytes", serialized_state.as_ref().unwrap().len());
             }
         }
     }

@@ -6,7 +6,11 @@ version = "0.0.1"
 authors = ["MikMuellerDev", "Konstantin Ebeling"]
 
 [dependencies]
-argh = { version = "0.1.12"}
+argh = { version = "0.1.12" }
 color-eyre = "0.6.3"
-log = { version = "0.4.21"}
+log = { version = "0.4.21" }
 tinywasm = { path = "../crates/tinywasm/" }
+rkyv = { version = "0.7.44", default-features = false, features = [
+    "size_32",
+    "validation",
+] }
