@@ -50,7 +50,7 @@ fn main() -> Result<()> {
     }
 }
 
-const MAX_CYCLES: usize = 200;
+const MAX_CYCLES: usize = 2000;
 const ENTRY_NAME: &str = "reef_main";
 
 fn run(module_bytes: &[u8]) -> Result<()> {
@@ -80,12 +80,14 @@ fn run(module_bytes: &[u8]) -> Result<()> {
         imports.define(
             "reef",
             "progress",
-            Extern::typed_func(|mut _ctx: FuncContext<'_>, percent: i32| {
-                if !(0..=100).contains(&percent) {
-                    return Err(tinywasm::Error::Io(io::Error::other("Invalid range: percentage must be in 0..=100")));
+            Extern::typed_func(|mut _ctx: FuncContext<'_>, done: f32| {
+                if done < 0.0 || done > 1.0 {
+                    return Err(tinywasm::Error::Io(io::Error::other(
+                        "Invalid range: progress must be between 0.0 and 1.0",
+                    )));
                 }
 
-                println!("REEF_REPORT_PROGRESS: {percent}");
+                println!("REEF_REPORT_PROGRESS: {done}");
                 Ok(())
             }),
         )?;
@@ -116,7 +118,7 @@ fn run(module_bytes: &[u8]) -> Result<()> {
                     serialized_state = Some(AlignedVec::with_capacity(PAGE_SIZE * 2));
                 }
                 serialized_state = Some(exec_handle.serialize(serialized_state.take().unwrap())?);
-                println!("serialized {} bytes", serialized_state.as_ref().unwrap().len());
+                // println!("serialized {} bytes", serialized_state.as_ref().unwrap().len());
             }
         }
     }
