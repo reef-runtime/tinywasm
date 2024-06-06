@@ -5,7 +5,7 @@ where
     fn checked_wrapping_rem(self, rhs: Self) -> Option<Self>;
 }
 
-pub(crate) trait TinywasmFloatExt {
+pub(crate) trait WasmFloatExt {
     fn tw_minimum(self, other: Self) -> Self;
     fn tw_maximum(self, other: Self) -> Self;
     fn tw_nearest(self) -> Self;
@@ -16,7 +16,7 @@ use super::no_std_floats::NoStdFloatExt;
 
 macro_rules! impl_wasm_float_ops {
     ($($t:ty)*) => ($(
-        impl TinywasmFloatExt for $t {
+        impl WasmFloatExt for $t {
             // https://webassembly.github.io/spec/core/exec/numerics.html#op-fnearest
             fn tw_nearest(self) -> Self {
                 match self {

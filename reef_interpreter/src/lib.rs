@@ -4,29 +4,18 @@
 
 //! A tiny WebAssembly Runtime written in Rust
 //!
-//! TinyWasm provides a minimal WebAssembly runtime for executing WebAssembly modules.
+//! This crate provides a minimal WebAssembly runtime for executing WebAssembly modules.
 //! It currently supports all features of the WebAssembly MVP specification and is
 //! designed to be easy to use and integrate in other projects.
 //!
 //! ## Features
 //!- **`std`**\
 //!  Enables the use of `std` and `std::io` for parsing from files and streams. This is enabled by default.
-//!- **`parser`**\
-//!  Enables the `tinywasm-parser` crate. This is enabled by default.
-//!- **`archive`**\
-//!  Enables pre-parsing of archives. This is enabled by default.
-//!
-//! With all these features disabled, TinyWasm only depends on `core`, `alloc` and `libm`.
-//! By disabling `std`, you can use TinyWasm in `no_std` environments. This requires
-//! a custom allocator and removes support for parsing from files and streams, but otherwise the API is the same.
-//! Additionally, to have proper error types in `no_std`, you currently need a `nightly` compiler to use the unstable error trait in `core`.
 //!
 //! ## Getting Started
 //! The easiest way to get started is to use the [`Module::parse_bytes`] function to load a
 //! WebAssembly module from bytes. This will parse the module and validate it, returning
 //! a [`Module`] that can be used to instantiate the module.
-//!
-//! For more examples, see the [`examples`](https://github.com/explodingcamera/tinywasm/tree/main/examples) directory.
 //!
 //! ## Imports
 //!

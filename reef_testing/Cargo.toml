@@ -9,7 +9,7 @@ authors = ["MikMuellerDev", "Konstantin Ebeling"]
 argh = { version = "0.1.12" }
 color-eyre = "0.6.3"
 log = { version = "0.4.21" }
-tinywasm = { path = "../crates/tinywasm/" }
+reef_interpreter = { path = "../reef_interpreter" }
 rkyv = { version = "0.7.44", default-features = false, features = [
     "size_32",
     "validation",

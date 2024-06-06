@@ -1,6 +1,5 @@
 [workspace]
-members = ["crates/tinywasm", "reef_testing", "reef_testing/rust_test"]
-# default-members=[".", "crates/tinywasm", "crates/types", "crates/parser"]
+members = ["reef_interpreter", "reef_testing", "reef_testing/rust_test"]
 resolver = "2"
 
 [profile.wasm]
@@ -14,5 +13,3 @@ inherits = "release"
 version = "0.7.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-authors = ["Henry Gressmann <mail@henrygressmann.de>"]
-repository = "https://github.com/explodingcamera/tinywasm"

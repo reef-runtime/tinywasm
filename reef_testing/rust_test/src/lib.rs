@@ -49,11 +49,11 @@ fn run(dataset: &[u8]) {
     reef::reef_log(&format!("out1: {}", run_test_trait2(&*the_struct)));
     reef::reef_log(&format!("out2: {}", run_test_trait1(the_struct)));
 
-    const NUM: usize = 100_000;
+    const NUM: usize = 1_000;
     let mut a = Wrapping(0);
     let mut b = Wrapping(1);
     for i in 0..NUM {
-        if i % 2000 == 0 {
+        if i % 100 == 0 {
             reef::reef_log(&format!("{b}"));
             reef::reef_progress(i as f32 / NUM as f32);
         }

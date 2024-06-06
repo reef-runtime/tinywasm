@@ -105,12 +105,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bumpalo"
-version = "3.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79296716171880943b8470b5f8d03aa55eb2e645a4874bdbb28adb49162e012c"
-
-[[package]]
 name = "bytecheck"
 version = "0.6.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -266,22 +260,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "itoa"
-version = "1.0.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49f1f14873335454500d59611f1cf4a4b0f786f9ac11f4312a78e4cf2566695b"
-
-[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
-
-[[package]]
-name = "leb128"
-version = "0.2.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "884e2677b40cc8c339eaefcb701c32ef1fd2493d71118dc0ca4b6a736c93bd67"
 
 [[package]]
 name = "libc"
@@ -388,6 +370,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc33ff2d4973d518d823d61aa239014831e521c75da58e3df4840d3f47749d09"
 
 [[package]]
+name = "reef_interpreter"
+version = "0.7.0"
+dependencies = [
+ "bytecheck 0.7.0",
+ "libm",
+ "rkyv",
+ "wasmparser",
+]
+
+[[package]]
 name = "rend"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -434,12 +426,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "719b953e2095829ee67db738b3bfa9fa368c94900df327b3f07fe6e794d2fe1f"
 
 [[package]]
-name = "ryu"
-version = "1.0.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3cb5ba0dc43242ce17de99c180e96db90b235b8a9fdc9543c96d2209116bd9f"
-
-[[package]]
 name = "seahash"
 version = "4.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -469,17 +455,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.61",
-]
-
-[[package]]
-name = "serde_json"
-version = "1.0.117"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "455182ea6142b14f93f4bc5320a2b31c1f266b66a4a5c858b013302a5d8cbfc3"
-dependencies = [
- "itoa",
- "ryu",
- "serde",
 ]
 
 [[package]]
@@ -551,20 +526,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
-name = "tinywasm"
-version = "0.7.0"
-dependencies = [
- "bytecheck 0.7.0",
- "eyre",
- "libm",
- "rkyv",
- "serde",
- "serde_json",
- "wasmparser",
- "wast",
-]
-
-[[package]]
 name = "tracing"
 version = "0.1.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -612,12 +573,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3354b9ac3fae1ff6755cb6db53683adb661634f67557942dea4facebec0fee4b"
 
 [[package]]
-name = "unicode-width"
-version = "0.1.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68f5e5f3158ecfd4b8ff6fe086db7c8467a2dfdac97fe420f2b7c4aa97af66d6"
-
-[[package]]
 name = "valuable"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -636,23 +591,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c8d87e72b64a3b4db28d11ce29237c246188f4f51057d65a7eab63b7987e423"
 
 [[package]]
-name = "wasm-encoder"
-version = "0.208.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6425e84e42f7f558478e40ecc2287912cb319f2ca68e5c0bb93c61d4fc63fa17"
-dependencies = [
- "leb128",
-]
-
-[[package]]
 name = "wasm_test"
 version = "0.0.1"
 dependencies = [
  "argh",
  "color-eyre",
  "log",
+ "reef_interpreter",
  "rkyv",
- "tinywasm",
 ]
 
 [[package]]
@@ -666,19 +612,6 @@ dependencies = [
  "hashbrown 0.14.5",
  "indexmap",
  "semver",
-]
-
-[[package]]
-name = "wast"
-version = "208.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc00b3f023b4e2ccd2e054e240294263db52ae962892e6523e550783c83a67f1"
-dependencies = [
- "bumpalo",
- "leb128",
- "memchr",
- "unicode-width",
- "wasm-encoder",
 ]
 
 [[package]]

@@ -6,7 +6,7 @@ use core::fmt::Display;
 use crate::parser::error::ParseError;
 use crate::types::{FuncType, Import};
 
-/// Errors that can occur for TinyWasm operations
+/// Errors that can occur for this crates operations
 #[derive(Debug)]
 pub enum Error {
     /// A WebAssembly trap occurred
@@ -252,5 +252,5 @@ impl From<ParseError> for Error {
     }
 }
 
-/// A wrapper around [`core::result::Result`] for tinywasm operations
+/// A wrapper around [`core::result::Result`] for this crates operations
 pub type Result<T, E = Error> = crate::std::result::Result<T, E>;

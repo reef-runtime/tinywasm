@@ -1,16 +1,14 @@
 [package]
-name = "tinywasm"
+name = "reef_interpreter"
 version.workspace = true
 description = "A tiny WebAssembly interpreter"
 edition.workspace = true
 license.workspace = true
-authors.workspace = true
-repository.workspace = true
-readme = "../../README.md"
+readme = "../README.md"
 
-[lib]
-name = "tinywasm"
-path = "src/lib.rs"
+# [lib]
+# name = "reef_interpreter"
+# path = "src/lib.rs"
 
 [dependencies]
 wasmparser = { version = "0.208", default-features = false, features = [
@@ -24,11 +22,10 @@ rkyv = { version = "0.7.44", default-features = false, features = [
 bytecheck = { version = "0.7" }
 
 [dev-dependencies]
-wast = { version = "208.0" }
-# owo-colors = { version = "4.0" }
-eyre = { version = "0.6" }
-serde_json = { version = "1.0" }
-serde = { version = "1.0", features = ["derive"] }
+# wast = { version = "208.0" }
+# eyre = { version = "0.6" }
+# serde_json = { version = "1.0" }
+# serde = { version = "1.0", features = ["derive"] }
 
 [features]
 default = ["std"]

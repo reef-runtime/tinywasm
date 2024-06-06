@@ -444,7 +444,7 @@ impl<'a> wasmparser::VisitOperator<'a> for FunctionBuilder {
             Some(Instruction::Else(else_instr_end_offset)) => {
                 *else_instr_end_offset = (current_instr_ptr - label_pointer)
                     .try_into()
-                    .expect("else_instr_end_offset is too large, tinywasm does not support if blocks that large");
+                    .expect("else_instr_end_offset is too large, interpreter does not support if blocks that large");
 
                 #[cold]
                 fn error() -> ParseError {
@@ -463,18 +463,18 @@ impl<'a> wasmparser::VisitOperator<'a> for FunctionBuilder {
 
                 *else_offset = (label_pointer - if_label_pointer)
                     .try_into()
-                    .expect("else_instr_end_offset is too large, tinywasm does not support blocks that large");
+                    .expect("else_instr_end_offset is too large, interpreter does not support blocks that large");
 
                 *end_offset = (current_instr_ptr - if_label_pointer)
                     .try_into()
-                    .expect("else_instr_end_offset is too large, tinywasm does not support blocks that large");
+                    .expect("else_instr_end_offset is too large, interpreter does not support blocks that large");
             }
             Some(Instruction::Block(_, end_offset))
             | Some(Instruction::Loop(_, end_offset))
             | Some(Instruction::If(_, _, end_offset)) => {
                 *end_offset = (current_instr_ptr - label_pointer)
                     .try_into()
-                    .expect("else_instr_end_offset is too large, tinywasm does not support  blocks that large");
+                    .expect("else_instr_end_offset is too large, interpreter does not support  blocks that large");
             }
             _ => {
                 unreachable!("Expected to end a block, but the last label was not a block")

@@ -21,7 +21,7 @@ mod no_std_floats;
 #[allow(unused_imports)]
 use no_std_floats::NoStdFloatExt;
 
-/// The TinyWasm runtime.
+/// The Wasm interpreter.
 #[derive(Debug, Default)]
 pub(crate) struct Interpreter {}
 

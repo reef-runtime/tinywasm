@@ -50,7 +50,7 @@ impl Parser {
         Validator::new_with_features(features.into())
     }
 
-    /// Parse a [`TinyWasmModule`] from bytes
+    /// Parse a [`Module`] from bytes
     pub(crate) fn parse_module_bytes(wasm: impl AsRef<[u8]>) -> Result<Module> {
         let wasm = wasm.as_ref();
         let mut validator = Self::create_validator();

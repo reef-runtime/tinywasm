@@ -5,30 +5,18 @@ use argh::FromArgs;
 use color_eyre::eyre::Result;
 use rkyv::AlignedVec;
 
-use tinywasm::{
+use reef_interpreter::{
+    error::Error,
     exec::CallResultTyped,
     imports::{Extern, FuncContext, Imports},
+    parse_bytes,
     reference::MemoryStringExt,
     Instance, PAGE_SIZE,
 };
 
+/// Test CLI args
 #[derive(FromArgs)]
-/// TinyWasm CLI
-struct TinyWasmCli {
-    #[argh(subcommand)]
-    nested: TinyWasmSubcommand,
-}
-
-#[derive(FromArgs)]
-#[argh(subcommand)]
-enum TinyWasmSubcommand {
-    Run(Run),
-}
-
-#[derive(FromArgs)]
-/// run a wasm file
-#[argh(subcommand, name = "run")]
-struct Run {
+struct CliArgs {
     /// wasm file to run
     #[argh(positional)]
     wasm_file: String,
@@ -40,21 +28,17 @@ struct Run {
 fn main() -> Result<()> {
     color_eyre::install()?;
 
-    let args: TinyWasmCli = argh::from_env();
+    let args: CliArgs = argh::from_env();
 
     let cwd = std::env::current_dir()?;
 
-    match args.nested {
-        TinyWasmSubcommand::Run(Run { wasm_file, wasm_arg }) => {
-            let path = cwd.join(wasm_file.clone());
-            let module_bytes = match wasm_file.ends_with(".wat") {
-                true => return Err(color_eyre::eyre::eyre!("wat support is not enabled in this build")),
-                false => &std::fs::read(path)?,
-            };
+    let path = cwd.join(args.wasm_file.clone());
+    let module_bytes = match args.wasm_file.ends_with(".wat") {
+        true => return Err(color_eyre::eyre::eyre!("wat support is not enabled in this build")),
+        false => &std::fs::read(path)?,
+    };
 
-            run(module_bytes, wasm_arg)
-        }
-    }
+    run(module_bytes, args.wasm_arg)
 }
 
 const MAX_CYCLES: usize = 5000;
@@ -67,7 +51,7 @@ fn run(module_bytes: &[u8], arg: i32) -> Result<()> {
     loop {
         cycles += 1;
 
-        let module = tinywasm::parse_bytes(module_bytes)?;
+        let module = parse_bytes(module_bytes)?;
 
         let mut imports = Imports::new();
 
@@ -89,9 +73,7 @@ fn run(module_bytes: &[u8], arg: i32) -> Result<()> {
             "progress",
             Extern::typed_func(|mut _ctx: FuncContext<'_>, done: f32| {
                 if !(0.0..=1.0).contains(&done) {
-                    return Err(tinywasm::error::Error::Io(io::Error::other(
-                        "Invalid range: progress must be between 0.0 and 1.0",
-                    )));
+                    return Err(Error::Io(io::Error::other("Invalid range: progress must be between 0.0 and 1.0")));
                 }
 
                 println!("REEF_REPORT_PROGRESS: {done}");
