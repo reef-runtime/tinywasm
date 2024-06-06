@@ -30,9 +30,9 @@ macro_rules! mem_load {
     ($load_type:ty, $target_type:ty, $arg:expr, $stack:ident, $module:ident) => {{
         #[inline(always)]
         fn mem_load_inner(
-            module: &crate::Instance,
+            module: &crate::instance::Instance,
             stack: &mut crate::runtime::Stack,
-            mem_addr: tinywasm_types::MemAddr,
+            mem_addr: crate::types::MemAddr,
             offset: u64,
         ) -> Result<()> {
             let mem = module.get_mem(mem_addr)?;
@@ -40,7 +40,7 @@ macro_rules! mem_load {
                 Some(Ok(a)) => a,
                 _ => {
                     cold();
-                    return Err(Error::Trap(crate::Trap::MemoryOutOfBounds {
+                    return Err(Error::Trap(crate::error::Trap::MemoryOutOfBounds {
                         offset: offset as usize,
                         len: core::mem::size_of::<$load_type>(),
                         max: mem.max_pages(),
@@ -70,7 +70,7 @@ macro_rules! mem_store {
         fn mem_store_inner(
             module: &mut crate::Instance,
             stack: &mut crate::runtime::Stack,
-            mem_addr: tinywasm_types::MemAddr,
+            mem_addr: crate::types::MemAddr,
             offset: u64,
         ) -> Result<()> {
             let mem = module.get_mem_mut(mem_addr)?;
@@ -125,11 +125,11 @@ macro_rules! checked_conv_float {
         let a: $from = $stack.values.pop()?.into();
 
         if unlikely(a.is_nan()) {
-            return Err(Error::Trap(crate::Trap::InvalidConversionToInt));
+            return Err(Error::Trap(crate::error::Trap::InvalidConversionToInt));
         }
 
         if unlikely(a <= min || a >= max) {
-            return Err(Error::Trap(crate::Trap::IntegerOverflow));
+            return Err(Error::Trap(crate::error::Trap::IntegerOverflow));
         }
 
         $stack.values.push((a as $intermediate as $to).into());
@@ -189,10 +189,10 @@ macro_rules! checked_int_arithmetic {
             let b: $to = b.into();
 
             if unlikely(b == 0) {
-                return Err(Error::Trap(crate::Trap::DivisionByZero));
+                return Err(Error::Trap(crate::error::Trap::DivisionByZero));
             }
 
-            let result = a.$op(b).ok_or_else(|| Error::Trap(crate::Trap::IntegerOverflow))?;
+            let result = a.$op(b).ok_or_else(|| Error::Trap(crate::error::Trap::IntegerOverflow))?;
             Ok((result).into())
         })?
     };

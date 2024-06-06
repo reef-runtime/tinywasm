@@ -1,6 +1,7 @@
-use crate::store::TableElement;
 use alloc::vec::Vec;
-use tinywasm_types::*;
+
+use crate::store::table::TableElement;
+use crate::types::ElementKind;
 
 /// A WebAssembly Element Instance
 ///

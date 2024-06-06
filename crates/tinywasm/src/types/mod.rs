@@ -1,21 +1,15 @@
-#![doc(test(
-    no_crate_inject,
-    attr(deny(warnings, rust_2018_idioms), allow(dead_code, unused_assignments, unused_variables))
-))]
-#![warn(missing_debug_implementations, rust_2018_idioms, unreachable_pub)]
-#![no_std]
-#![forbid(unsafe_code)]
-
-//! Types used by [`tinywasm`](https://docs.rs/tinywasm) and [`tinywasm_parser`](https://docs.rs/tinywasm_parser).
+#![allow(missing_docs)]
+//! Types used by other parts of the crate.
 
 extern crate alloc;
 use alloc::boxed::Box;
 use core::{fmt::Debug, ops::Range};
 
-mod instructions;
-mod value;
-pub use instructions::*;
-pub use value::*;
+pub mod instructions;
+pub mod value;
+
+use instructions::{ConstInstruction, Instruction};
+use value::ValType;
 
 #[cfg(feature = "archive")]
 pub mod archive;

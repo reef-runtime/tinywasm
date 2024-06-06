@@ -1,11 +1,15 @@
+//! References to parts of instatiated Wasm modules
+
+use alloc::{
+    ffi::CString,
+    string::{String, ToString},
+    vec::Vec,
+};
 use core::ffi::CStr;
 
-use alloc::ffi::CString;
-use alloc::string::{String, ToString};
-use alloc::vec::Vec;
-
-use crate::{store::GlobalInstance, store::MemoryInstance, Result};
-use tinywasm_types::WasmValue;
+use crate::error::{Error, Result};
+use crate::store::{global::GlobalInstance, memory::MemoryInstance};
+use crate::types::value::WasmValue;
 
 // This module essentially contains the public APIs to interact with the data stored in the store
 
@@ -97,19 +101,19 @@ pub trait MemoryStringExt: MemoryRefLoad {
     /// Load a C-style string from memory
     fn load_cstr(&self, offset: usize, len: usize) -> Result<&CStr> {
         let bytes = self.load(offset, len)?;
-        CStr::from_bytes_with_nul(bytes).map_err(|_| crate::Error::Other("Invalid C-style string".to_string()))
+        CStr::from_bytes_with_nul(bytes).map_err(|_| Error::Other("Invalid C-style string".to_string()))
     }
 
     /// Load a C-style string from memory, stopping at the first nul byte
     fn load_cstr_until_nul(&self, offset: usize, max_len: usize) -> Result<&CStr> {
         let bytes = self.load(offset, max_len)?;
-        CStr::from_bytes_until_nul(bytes).map_err(|_| crate::Error::Other("Invalid C-style string".to_string()))
+        CStr::from_bytes_until_nul(bytes).map_err(|_| Error::Other("Invalid C-style string".to_string()))
     }
 
     /// Load a UTF-8 string from memory
     fn load_string(&self, offset: usize, len: usize) -> Result<String> {
         let bytes = self.load(offset, len)?;
-        String::from_utf8(bytes.to_vec()).map_err(|_| crate::Error::Other("Invalid UTF-8 string".to_string()))
+        String::from_utf8(bytes.to_vec()).map_err(|_| Error::Other("Invalid UTF-8 string".to_string()))
     }
 
     /// Load a C-style string from memory
@@ -128,9 +132,7 @@ pub trait MemoryStringExt: MemoryRefLoad {
         let mut string = String::new();
         for i in 0..(len / 2) {
             let c = u16::from_le_bytes([bytes[i * 2], bytes[i * 2 + 1]]);
-            string.push(
-                char::from_u32(c as u32).ok_or_else(|| crate::Error::Other("Invalid UTF-16 string".to_string()))?,
-            );
+            string.push(char::from_u32(c as u32).ok_or_else(|| Error::Other("Invalid UTF-16 string".to_string()))?);
         }
         Ok(string)
     }

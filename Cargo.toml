@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/*", "reef_testing", "reef_testing/rust_test"]
+members = ["crates/tinywasm", "reef_testing", "reef_testing/rust_test"]
 # default-members=[".", "crates/tinywasm", "crates/types", "crates/parser"]
 resolver = "2"
 

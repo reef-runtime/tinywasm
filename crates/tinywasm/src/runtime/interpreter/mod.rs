@@ -1,13 +1,14 @@
 use alloc::format;
 use alloc::string::ToString;
 use core::ops::{BitAnd, BitOr, BitXor, Neg};
-use tinywasm_types::{BlockArgs, ElementKind, ValType};
 
 use super::{RawWasmValue, Stack};
+use crate::error::{Error, Result, Trap};
+use crate::imports::{FuncContext, Function};
+use crate::instance::Instance;
 use crate::runtime::{BlockFrame, BlockType, CallFrame};
-use crate::VecExt;
-use crate::{cold, unlikely, Instance};
-use crate::{Error, FuncContext, Result, Trap};
+use crate::types::{instructions::BlockArgs, value::ValType, ElementKind};
+use crate::{cold, unlikely, VecExt};
 
 mod macros;
 mod traits;
@@ -22,7 +23,7 @@ use no_std_floats::NoStdFloatExt;
 
 /// The TinyWasm runtime.
 #[derive(Debug, Default)]
-pub struct Interpreter {}
+pub(crate) struct Interpreter {}
 
 impl Interpreter {
     pub(crate) fn exec(&self, mut instance: &mut Instance, stack: &mut Stack, max_cycles: usize) -> Result<bool> {
@@ -30,7 +31,7 @@ impl Interpreter {
         // let mut instance = store.get_module_instance().unwrap().clone();
 
         for _ in 0..=max_cycles {
-            use tinywasm_types::Instruction::*;
+            use crate::types::instructions::Instruction::*;
 
             let curr_instr = cf.fetch_instr(&instance.funcs);
 
@@ -577,8 +578,8 @@ impl Interpreter {
     fn exec_call(&self, v: u32, stack: &mut Stack, cf: &mut CallFrame, instance: &mut Instance) -> Result<()> {
         let func_inst = instance.funcs.get_or_instance(v, "function")?;
         let wasm_func = match &func_inst {
-            crate::Function::Wasm(wasm_func) => wasm_func,
-            crate::Function::Host(host_func) => {
+            Function::Wasm(wasm_func) => wasm_func,
+            Function::Host(host_func) => {
                 let params = stack.values.pop_params(&host_func.ty.params)?;
                 let res = (host_func.func)(
                     FuncContext { module: &instance.module, memories: &mut instance.memories },
@@ -620,8 +621,8 @@ impl Interpreter {
         let call_ty = instance.func_ty(type_addr);
 
         let wasm_func = match &func_inst {
-            crate::Function::Wasm(ref f) => f,
-            crate::Function::Host(host_func) => {
+            Function::Wasm(ref f) => f,
+            Function::Host(host_func) => {
                 if unlikely(host_func.ty != *call_ty) {
                     return Err(Trap::IndirectCallTypeMismatch {
                         actual: host_func.ty.clone(),

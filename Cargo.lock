@@ -118,7 +118,6 @@ checksum = "23cdc57ce23ac53c931e88a43d06d070a6fd142f2617be5855eb75efc9beb1c2"
 dependencies = [
  "bytecheck_derive 0.6.12",
  "ptr_meta",
- "simdutf8",
 ]
 
 [[package]]
@@ -153,12 +152,6 @@ dependencies = [
  "quote",
  "syn 1.0.109",
 ]
-
-[[package]]
-name = "bytes"
-version = "1.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "514de17de45fdb8dc022b1a7975556c53c86f9f0aa5f534b98977b171857c2c9"
 
 [[package]]
 name = "cc"
@@ -411,14 +404,12 @@ checksum = "5cba464629b3394fc4dbc6f940ff8f5b4ff5c7aef40f29166fd4ad12acbc99c0"
 dependencies = [
  "bitvec",
  "bytecheck 0.6.12",
- "bytes",
  "hashbrown 0.12.3",
  "ptr_meta",
  "rend",
  "rkyv_derive",
  "seahash",
  "tinyvec",
- "uuid",
 ]
 
 [[package]]
@@ -569,25 +560,8 @@ dependencies = [
  "rkyv",
  "serde",
  "serde_json",
- "tinywasm-parser",
- "tinywasm-types",
- "wast",
-]
-
-[[package]]
-name = "tinywasm-parser"
-version = "0.7.0"
-dependencies = [
- "tinywasm-types",
  "wasmparser",
-]
-
-[[package]]
-name = "tinywasm-types"
-version = "0.7.0"
-dependencies = [
- "bytecheck 0.7.0",
- "rkyv",
+ "wast",
 ]
 
 [[package]]
@@ -642,12 +616,6 @@ name = "unicode-width"
 version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68f5e5f3158ecfd4b8ff6fe086db7c8467a2dfdac97fe420f2b7c4aa97af66d6"
-
-[[package]]
-name = "uuid"
-version = "1.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a183cf7feeba97b4dd1c0d46788634f6221d87fa961b305bed08c851829efcc0"
 
 [[package]]
 name = "valuable"

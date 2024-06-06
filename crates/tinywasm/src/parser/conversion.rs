@@ -1,23 +1,36 @@
-use crate::Result;
-use crate::{module::Code, visit::process_operators};
 use alloc::{boxed::Box, format, string::ToString, vec::Vec};
-use tinywasm_types::*;
+
+use crate::parser::{
+    error::{ParseError, Result},
+    module::Code,
+    visit::process_operators,
+};
+use crate::types::{
+    self,
+    instructions::{BlockArgs, ConstInstruction, MemoryArg},
+    value::ValType,
+    ElementItem, Export, ExternalKind, FuncType, Global, GlobalType, Import, ImportKind, MemoryArch, MemoryType,
+    TableType,
+};
+
+// use types::*;
+
 use wasmparser::{FuncValidator, OperatorsReader, ValidatorResources};
 
 pub(crate) fn convert_module_elements<'a, T: IntoIterator<Item = wasmparser::Result<wasmparser::Element<'a>>>>(
     elements: T,
-) -> Result<Vec<tinywasm_types::Element>> {
+) -> Result<Vec<types::Element>> {
     elements.into_iter().map(|element| convert_module_element(element?)).collect::<Result<Vec<_>>>()
 }
 
-pub(crate) fn convert_module_element(element: wasmparser::Element<'_>) -> Result<tinywasm_types::Element> {
+pub(crate) fn convert_module_element(element: wasmparser::Element<'_>) -> Result<types::Element> {
     let kind = match element.kind {
-        wasmparser::ElementKind::Active { table_index, offset_expr } => tinywasm_types::ElementKind::Active {
+        wasmparser::ElementKind::Active { table_index, offset_expr } => types::ElementKind::Active {
             table: table_index.unwrap_or(0),
             offset: process_const_operators(offset_expr.get_operators_reader())?,
         },
-        wasmparser::ElementKind::Passive => tinywasm_types::ElementKind::Passive,
-        wasmparser::ElementKind::Declared => tinywasm_types::ElementKind::Declared,
+        wasmparser::ElementKind::Passive => types::ElementKind::Passive,
+        wasmparser::ElementKind::Declared => types::ElementKind::Declared,
     };
 
     match element.items {
@@ -28,7 +41,7 @@ pub(crate) fn convert_module_element(element: wasmparser::Element<'_>) -> Result
                 .collect::<Result<Vec<_>>>()?
                 .into_boxed_slice();
 
-            Ok(tinywasm_types::Element { kind, items, ty: ValType::RefFunc, range: element.range })
+            Ok(types::Element { kind, items, ty: ValType::RefFunc, range: element.range })
         }
 
         wasmparser::ElementItems::Expressions(ty, exprs) => {
@@ -38,27 +51,27 @@ pub(crate) fn convert_module_element(element: wasmparser::Element<'_>) -> Result
                 .collect::<Result<Vec<_>>>()?
                 .into_boxed_slice();
 
-            Ok(tinywasm_types::Element { kind, items, ty: convert_reftype(&ty), range: element.range })
+            Ok(types::Element { kind, items, ty: convert_reftype(&ty), range: element.range })
         }
     }
 }
 
 pub(crate) fn convert_module_data_sections<'a, T: IntoIterator<Item = wasmparser::Result<wasmparser::Data<'a>>>>(
     data_sections: T,
-) -> Result<Vec<tinywasm_types::Data>> {
+) -> Result<Vec<types::Data>> {
     data_sections.into_iter().map(|data| convert_module_data(data?)).collect::<Result<Vec<_>>>()
 }
 
-pub(crate) fn convert_module_data(data: wasmparser::Data<'_>) -> Result<tinywasm_types::Data> {
-    Ok(tinywasm_types::Data {
+pub(crate) fn convert_module_data(data: wasmparser::Data<'_>) -> Result<types::Data> {
+    Ok(types::Data {
         data: data.data.to_vec().into_boxed_slice(),
         range: data.range,
         kind: match data.kind {
             wasmparser::DataKind::Active { memory_index, offset_expr } => {
                 let offset = process_const_operators(offset_expr.get_operators_reader())?;
-                tinywasm_types::DataKind::Active { mem: memory_index, offset }
+                types::DataKind::Active { mem: memory_index, offset }
             }
-            wasmparser::DataKind::Passive => tinywasm_types::DataKind::Passive,
+            wasmparser::DataKind::Passive => types::DataKind::Passive,
         },
     })
 }
@@ -78,11 +91,11 @@ pub(crate) fn convert_module_import(import: wasmparser::Import<'_>) -> Result<Im
             wasmparser::TypeRef::Table(ty) => ImportKind::Table(TableType {
                 element_type: convert_reftype(&ty.element_type),
                 size_initial: ty.initial.try_into().map_err(|_| {
-                    crate::ParseError::UnsupportedOperator(format!("Table size initial is too large: {}", ty.initial))
+                    ParseError::UnsupportedOperator(format!("Table size initial is too large: {}", ty.initial))
                 })?,
                 size_max: match ty.maximum {
                     Some(max) => Some(max.try_into().map_err(|_| {
-                        crate::ParseError::UnsupportedOperator(format!("Table size max is too large: {}", max))
+                        ParseError::UnsupportedOperator(format!("Table size max is too large: {}", max))
                     })?),
                     None => None,
                 },
@@ -92,7 +105,7 @@ pub(crate) fn convert_module_import(import: wasmparser::Import<'_>) -> Result<Im
                 ImportKind::Global(GlobalType { mutable: ty.mutable, ty: convert_valtype(&ty.content_type) })
             }
             wasmparser::TypeRef::Tag(ty) => {
-                return Err(crate::ParseError::UnsupportedOperator(format!("Unsupported import kind: {:?}", ty)))
+                return Err(ParseError::UnsupportedOperator(format!("Unsupported import kind: {:?}", ty)))
             }
         },
     })
@@ -123,13 +136,13 @@ pub(crate) fn convert_module_tables<'a, T: IntoIterator<Item = wasmparser::Resul
 
 pub(crate) fn convert_module_table(table: wasmparser::Table<'_>) -> Result<TableType> {
     let size_initial = table.ty.initial.try_into().map_err(|_| {
-        crate::ParseError::UnsupportedOperator(format!("Table size initial is too large: {}", table.ty.initial))
+        ParseError::UnsupportedOperator(format!("Table size initial is too large: {}", table.ty.initial))
     })?;
 
     let size_max = match table.ty.maximum {
         Some(max) => Some(
             max.try_into()
-                .map_err(|_| crate::ParseError::UnsupportedOperator(format!("Table size max is too large: {}", max)))?,
+                .map_err(|_| ParseError::UnsupportedOperator(format!("Table size max is too large: {}", max)))?,
         ),
         None => None,
     };
@@ -159,7 +172,7 @@ pub(crate) fn convert_module_export(export: wasmparser::Export<'_>) -> Result<Ex
         wasmparser::ExternalKind::Memory => ExternalKind::Memory,
         wasmparser::ExternalKind::Global => ExternalKind::Global,
         wasmparser::ExternalKind::Tag => {
-            return Err(crate::ParseError::UnsupportedOperator(format!("Unsupported export kind: {:?}", export.kind)))
+            return Err(ParseError::UnsupportedOperator(format!("Unsupported export kind: {:?}", export.kind)))
         }
     };
 
@@ -192,9 +205,7 @@ pub(crate) fn convert_module_type(ty: wasmparser::RecGroup) -> Result<FuncType> 
     let mut types = ty.types();
 
     if types.len() != 1 {
-        return Err(crate::ParseError::UnsupportedOperator(
-            "Expected exactly one type in the type section".to_string(),
-        ));
+        return Err(ParseError::UnsupportedOperator("Expected exactly one type in the type section".to_string()));
     }
     let ty = types.next().unwrap().unwrap_func();
     let params = ty.params().iter().map(convert_valtype).collect::<Vec<ValType>>().into_boxed_slice();
@@ -250,7 +261,7 @@ pub(crate) fn process_const_operators(ops: OperatorsReader<'_>) -> Result<ConstI
         wasmparser::Operator::F32Const { value } => Ok(ConstInstruction::F32Const(f32::from_bits(value.bits()))),
         wasmparser::Operator::F64Const { value } => Ok(ConstInstruction::F64Const(f64::from_bits(value.bits()))),
         wasmparser::Operator::GlobalGet { global_index } => Ok(ConstInstruction::GlobalGet(*global_index)),
-        op => Err(crate::ParseError::UnsupportedOperator(format!("Unsupported const instruction: {:?}", op))),
+        op => Err(ParseError::UnsupportedOperator(format!("Unsupported const instruction: {:?}", op))),
     }
 }
 

@@ -1,6 +1,6 @@
 use core::fmt::Debug;
 
-use crate::{ConstInstruction, ExternAddr, FuncAddr};
+use crate::types::{ExternAddr, FuncAddr};
 
 /// A WebAssembly value.
 ///
@@ -18,28 +18,15 @@ pub enum WasmValue {
     F64(f64),
     // /// A 128-bit vector
     // V128(u128),
+    /// A reference to an extern value
     RefExtern(ExternAddr),
+    /// A reference to a function
     RefFunc(FuncAddr),
+    /// A reference to Null
     RefNull(ValType),
 }
 
 impl WasmValue {
-    #[inline]
-    pub fn const_instr(&self) -> ConstInstruction {
-        match self {
-            Self::I32(i) => ConstInstruction::I32Const(*i),
-            Self::I64(i) => ConstInstruction::I64Const(*i),
-            Self::F32(i) => ConstInstruction::F32Const(*i),
-            Self::F64(i) => ConstInstruction::F64Const(*i),
-
-            Self::RefFunc(i) => ConstInstruction::RefFunc(*i),
-            Self::RefNull(ty) => ConstInstruction::RefNull(*ty),
-
-            // Self::RefExtern(addr) => ConstInstruction::RefExtern(*addr),
-            _ => unimplemented!("no const_instr for {:?}", self),
-        }
-    }
-
     /// Get the default value for a given type.
     #[inline]
     pub fn default_for(ty: ValType) -> Self {
@@ -54,6 +41,7 @@ impl WasmValue {
         }
     }
 
+    /// check if two values are roughlt equal
     #[inline]
     pub fn eq_loose(&self, other: &Self) -> bool {
         match (self, other) {
@@ -137,6 +125,7 @@ pub enum ValType {
 }
 
 impl ValType {
+    /// Get the default of a type
     #[inline]
     pub fn default_value(&self) -> WasmValue {
         WasmValue::default_for(*self)

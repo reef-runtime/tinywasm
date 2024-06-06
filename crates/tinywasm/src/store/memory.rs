@@ -1,8 +1,8 @@
-use alloc::vec;
-use alloc::vec::Vec;
-use tinywasm_types::MemoryType;
+use alloc::{vec, vec::Vec};
 
-use crate::{Error, Result, MAX_PAGES, MAX_SIZE, PAGE_SIZE};
+use crate::error::{Error, Result, Trap};
+use crate::types::MemoryType;
+use crate::{MAX_PAGES, MAX_SIZE, PAGE_SIZE};
 
 /// A WebAssembly Memory Instance
 ///
@@ -28,7 +28,7 @@ impl MemoryInstance {
     #[inline(never)]
     #[cold]
     fn trap_oob(&self, addr: usize, len: usize) -> Error {
-        Error::Trap(crate::Trap::MemoryOutOfBounds { offset: addr, len, max: self.data.len() })
+        Error::Trap(Trap::MemoryOutOfBounds { offset: addr, len, max: self.data.len() })
     }
 
     pub(crate) fn store(&mut self, addr: usize, len: usize, data: &[u8]) -> Result<()> {
@@ -169,78 +169,3 @@ macro_rules! impl_mem_loadable_for_primitive {
 impl_mem_loadable_for_primitive!(
     u8, 1, i8, 1, u16, 2, i16, 2, u32, 4, i32, 4, f32, 4, u64, 8, i64, 8, f64, 8, u128, 16, i128, 16
 );
-
-#[cfg(test)]
-mod memory_instance_tests {
-    use super::*;
-    use tinywasm_types::MemoryArch;
-
-    fn create_test_memory() -> MemoryInstance {
-        let kind = MemoryType { arch: MemoryArch::I32, page_count_initial: 1, page_count_max: Some(2) };
-        MemoryInstance::new(kind)
-    }
-
-    #[test]
-    fn test_memory_store_and_load() {
-        let mut memory = create_test_memory();
-        let data_to_store = [1, 2, 3, 4];
-        assert!(memory.store(0, data_to_store.len(), &data_to_store).is_ok());
-        let loaded_data = memory.load(0, data_to_store.len()).unwrap();
-        assert_eq!(loaded_data, &data_to_store);
-    }
-
-    #[test]
-    fn test_memory_store_out_of_bounds() {
-        let mut memory = create_test_memory();
-        let data_to_store = [1, 2, 3, 4];
-        assert!(memory.store(memory.data.len(), data_to_store.len(), &data_to_store).is_err());
-    }
-
-    #[test]
-    fn test_memory_fill() {
-        let mut memory = create_test_memory();
-        assert!(memory.fill(0, 10, 42).is_ok());
-        assert_eq!(&memory.data[0..10], &[42; 10]);
-    }
-
-    #[test]
-    fn test_memory_fill_out_of_bounds() {
-        let mut memory = create_test_memory();
-        assert!(memory.fill(memory.data.len(), 10, 42).is_err());
-    }
-
-    #[test]
-    fn test_memory_copy_within() {
-        let mut memory = create_test_memory();
-        memory.fill(0, 10, 1).unwrap();
-        assert!(memory.copy_within(10, 0, 10).is_ok());
-        assert_eq!(&memory.data[10..20], &[1; 10]);
-    }
-
-    #[test]
-    fn test_memory_copy_within_out_of_bounds() {
-        let mut memory = create_test_memory();
-        assert!(memory.copy_within(memory.data.len(), 0, 10).is_err());
-    }
-
-    #[test]
-    fn test_memory_grow() {
-        let mut memory = create_test_memory();
-        let original_pages = memory.page_count();
-        assert_eq!(memory.grow(1), Some(original_pages as i32));
-        assert_eq!(memory.page_count(), original_pages + 1);
-    }
-
-    #[test]
-    fn test_memory_grow_out_of_bounds() {
-        let mut memory = create_test_memory();
-        assert!(memory.grow(MAX_PAGES as i32 + 1).is_none());
-    }
-
-    #[test]
-    fn test_memory_grow_max_pages() {
-        let mut memory = create_test_memory();
-        assert_eq!(memory.grow(1), Some(1));
-        assert_eq!(memory.grow(1), None);
-    }
-}

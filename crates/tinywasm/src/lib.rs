@@ -1,12 +1,6 @@
-// #![no_std]
-#![doc(test(
-    no_crate_inject,
-    attr(deny(warnings, rust_2018_idioms), allow(dead_code, unused_assignments, unused_variables))
-))]
-#![allow(unexpected_cfgs, clippy::reserve_after_initialization)]
-// #![warn(missing_docs, missing_debug_implementations, rust_2018_idioms, unreachable_pub)]
-#![cfg_attr(nightly, feature(error_in_core))]
-// #![forbid(unsafe_code)]
+#![no_std]
+#![warn(missing_docs, missing_debug_implementations, rust_2018_idioms, unreachable_pub)]
+// #![cfg_attr(nightly, feature(error_in_core))]
 
 //! A tiny WebAssembly Runtime written in Rust
 //!
@@ -44,42 +38,38 @@
 
 extern crate alloc;
 
-mod std;
+#[cfg(feature = "std")]
+extern crate std;
 
-mod error;
-mod exec;
-mod func;
-mod imports;
+pub mod error;
+pub mod exec;
+pub mod func;
+pub mod imports;
 mod instance;
 mod module;
-mod reference;
+mod parser;
+pub mod reference;
 mod runtime;
 mod store;
+pub mod types;
 
-pub use error::*;
-pub use exec::*;
-pub use func::*;
-pub use imports::*;
+// pub use error::*;
+// pub use exec::*;
+// pub use func::*;
+// pub use imports::*;
 pub use instance::Instance;
 pub use module::parse_bytes;
-pub use reference::*;
-pub use tinywasm_types::Module;
+// pub use reference::*;
+pub use types::Module;
+// pub use types::*;
 
 pub(crate) const CALL_STACK_SIZE: usize = 1024;
 
+/// Max Wasm page size
 pub const PAGE_SIZE: usize = 65536;
+/// Max number of pages for a Wasm module
 pub const MAX_PAGES: usize = 65536;
 const MAX_SIZE: u64 = PAGE_SIZE as u64 * MAX_PAGES as u64;
-
-/// Re-export of [`tinywasm_parser`]. Requires `parser` feature.
-pub mod parser {
-    pub use tinywasm_parser::*;
-}
-
-/// Re-export of [`tinywasm_types`].
-pub mod types {
-    pub use tinywasm_types::*;
-}
 
 #[cold]
 pub(crate) fn cold() {}
@@ -101,10 +91,10 @@ pub(crate) trait VecExt<T> {
     where
         F: FnOnce() -> E;
 
-    fn get_or_instance(&self, index: u32, name: &str) -> Result<&T, Error>;
-    fn get_mut_or_instance(&mut self, index: u32, name: &str) -> Result<&mut T, Error>;
+    fn get_or_instance(&self, index: u32, name: &str) -> Result<&T, error::Error>;
+    fn get_mut_or_instance(&mut self, index: u32, name: &str) -> Result<&mut T, error::Error>;
 }
-impl<T> VecExt<T> for Vec<T> {
+impl<T> VecExt<T> for alloc::vec::Vec<T> {
     fn add(&mut self, value: T) -> usize {
         self.push(value);
         self.len() - 1
@@ -124,10 +114,10 @@ impl<T> VecExt<T> for Vec<T> {
         self.get_mut(index).ok_or_else(err)
     }
 
-    fn get_or_instance(&self, index: u32, name: &str) -> Result<&T, Error> {
+    fn get_or_instance(&self, index: u32, name: &str) -> Result<&T, error::Error> {
         self.get_or(index as usize, || Instance::not_found_error(name))
     }
-    fn get_mut_or_instance(&mut self, index: u32, name: &str) -> Result<&mut T, Error> {
+    fn get_mut_or_instance(&mut self, index: u32, name: &str) -> Result<&mut T, error::Error> {
         self.get_mut_or(index as usize, || Instance::not_found_error(name))
     }
 }

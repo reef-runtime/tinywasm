@@ -1,9 +1,11 @@
-use crate::{cold, unlikely, Error, Result};
 use alloc::vec::Vec;
+
+use crate::error::{Error, Result};
+use crate::{cold, unlikely};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 #[archive(check_bytes)]
-pub(crate) struct BlockStack(pub Vec<BlockFrame>);
+pub(crate) struct BlockStack(pub(crate) Vec<BlockFrame>);
 
 impl BlockStack {
     pub(crate) fn new() -> Self {

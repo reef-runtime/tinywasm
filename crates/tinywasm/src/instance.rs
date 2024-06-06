@@ -1,16 +1,28 @@
-use alloc::{format, string::ToString};
+use alloc::{format, string::ToString, vec::Vec};
 
 use rkyv::Deserialize;
 
-use tinywasm_types::*;
-
-use crate::func::{FromWasmValueTuple, IntoWasmValueTuple};
+use crate::error::{Error, LinkingError, Result, Trap};
+use crate::exec::SerializationState;
+use crate::func::{FromWasmValueTuple, FuncHandle, FuncHandleTyped, IntoWasmValueTuple};
+use crate::imports::{Extern, Function, Imports, ResolvedImports};
+use crate::reference::{MemoryRef, MemoryRefMut};
 use crate::runtime::{RawWasmValue, Stack};
-use crate::{
-    store::*, Error, Extern, FuncHandle, FuncHandleTyped, Function, Imports, LinkingError, MemoryRef, MemoryRefMut,
-    ResolvedImports, Result, SerializationState, Trap, VecExt, CALL_STACK_SIZE,
+use crate::store::{
+    data::DataInstance,
+    element::ElementInstance,
+    global::GlobalInstance,
+    memory::MemoryInstance,
+    table::{TableElement, TableInstance},
 };
+use crate::types::{
+    instructions::ConstInstruction, Addr, Data, DataAddr, DataKind, ElementItem, ElementKind, ExternVal, FuncAddr,
+    FuncType, Global, GlobalAddr, ImportKind, MemAddr, MemoryArch, MemoryType, Module, TableAddr, TableType,
+    WasmFunction,
+};
+use crate::{VecExt, CALL_STACK_SIZE};
 
+/// An instantiated Wasm module on which function can be called
 #[allow(dead_code)]
 #[derive(Debug, Default)]
 pub struct Instance {
@@ -25,7 +37,7 @@ pub struct Instance {
 }
 
 impl Instance {
-    /// Instantiate the module in the given store
+    /// Instantiate the module with the given imports
     pub fn instantiate(module: Module, imports: Imports) -> Result<Self> {
         let mut instance = Instance { module, ..Default::default() };
 
@@ -51,6 +63,7 @@ impl Instance {
         Ok(instance)
     }
 
+    /// Instantiate the module with the given imports and restore state to resume execution of a function
     pub fn instantiate_with_state(module: Module, imports: Imports, state: &[u8]) -> Result<(Self, Stack)> {
         let mut instance = Self::instantiate(module, imports)?;
 
@@ -370,7 +383,7 @@ impl Instance {
         let mut data_addrs = Vec::with_capacity(data_count);
         for (i, data) in datas.into_iter().enumerate() {
             let data_val = match data.kind {
-                tinywasm_types::DataKind::Active { mem: mem_addr, offset } => {
+                DataKind::Active { mem: mem_addr, offset } => {
                     // a. Assert: memidx == 0
                     if mem_addr != 0 {
                         return Err(Error::UnsupportedFeature("data segments for non-zero memories".to_string()));
@@ -391,7 +404,7 @@ impl Instance {
                         Err(e) => return Err(e),
                     }
                 }
-                tinywasm_types::DataKind::Passive => Some(data.data.to_vec()),
+                DataKind::Passive => Some(data.data.to_vec()),
             };
 
             self.datas.push(DataInstance::new(data_val));
@@ -403,8 +416,8 @@ impl Instance {
     }
 
     /// Evaluate a constant expression, only supporting i32 globals and i32.const
-    pub(crate) fn eval_i32_const(&self, const_instr: &tinywasm_types::ConstInstruction) -> Result<i32> {
-        use tinywasm_types::ConstInstruction::*;
+    pub(crate) fn eval_i32_const(&self, const_instr: &ConstInstruction) -> Result<i32> {
+        use ConstInstruction::*;
         let val = match const_instr {
             I32Const(i) => *i,
             GlobalGet(addr) => i32::from(self.globals[*addr as usize].value),
@@ -416,11 +429,11 @@ impl Instance {
     /// Evaluate a constant expression
     pub(crate) fn eval_const(
         &self,
-        const_instr: &tinywasm_types::ConstInstruction,
+        const_instr: &ConstInstruction,
         module_global_addrs: &[Addr],
         module_func_addrs: &[FuncAddr],
     ) -> Result<RawWasmValue> {
-        use tinywasm_types::ConstInstruction::*;
+        use ConstInstruction::*;
         let val = match const_instr {
             F32Const(f) => RawWasmValue::from(*f),
             F64Const(f) => RawWasmValue::from(*f),

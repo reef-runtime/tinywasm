@@ -1,6 +1,9 @@
-use crate::{cold, runtime::RawWasmValue, unlikely, Error, Result};
 use alloc::vec::Vec;
-use tinywasm_types::{ValType, WasmValue};
+
+use crate::error::{Error, Result};
+use crate::runtime::RawWasmValue;
+use crate::types::value::{ValType, WasmValue};
+use crate::{cold, unlikely};
 
 pub(crate) const MIN_VALUE_STACK_SIZE: usize = 1024 * 128;
 

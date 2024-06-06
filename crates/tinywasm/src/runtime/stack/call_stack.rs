@@ -1,14 +1,15 @@
-use std::hint::unreachable_unchecked;
-
-use crate::runtime::{BlockType, RawWasmValue};
-use crate::{cold, unlikely, Function, CALL_STACK_SIZE};
-use crate::{Error, Result, Trap};
 use alloc::{boxed::Box, vec::Vec};
-use tinywasm_types::{FuncAddr, Instruction, LocalAddr, WasmFunction};
+use core::hint::unreachable_unchecked;
+
+use crate::error::{Error, Result, Trap};
+use crate::imports::Function;
+use crate::runtime::{BlockType, RawWasmValue};
+use crate::types::{instructions::Instruction, FuncAddr, LocalAddr, WasmFunction};
+use crate::{cold, unlikely, CALL_STACK_SIZE};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 #[archive(check_bytes)]
-pub(crate) struct CallStack(pub Vec<CallFrame>);
+pub(crate) struct CallStack(pub(crate) Vec<CallFrame>);
 
 impl CallStack {
     #[inline]

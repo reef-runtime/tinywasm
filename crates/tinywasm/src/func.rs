@@ -1,10 +1,23 @@
-use crate::exec::{ExecHandle, ExecHandleTyped};
-use crate::{runtime::RawWasmValue, unlikely, Function};
-use alloc::{boxed::Box, format, string::String, string::ToString, vec, vec::Vec};
-use tinywasm_types::{FuncType, ValType, WasmValue};
+//! Types related to getting handles for functions in a Wasm module
 
-use crate::runtime::{CallFrame, Stack};
-use crate::{Error, Instance, Result, VecExt};
+use alloc::{
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
+
+use crate::error::{Error, Result};
+use crate::exec::{ExecHandle, ExecHandleTyped};
+use crate::imports::Function;
+use crate::instance::Instance;
+use crate::runtime::{CallFrame, RawWasmValue, Stack};
+use crate::types::{
+    value::{ValType, WasmValue},
+    FuncType,
+};
+use crate::{unlikely, VecExt};
 
 #[derive(Debug)]
 /// A function handle
@@ -19,6 +32,7 @@ pub struct FuncHandle {
 }
 
 impl FuncHandle {
+    /// Start or resume execution of function
     pub fn call(self, params: Vec<WasmValue>, stack: Option<Stack>) -> Result<ExecHandle> {
         let func_ty = &self.ty;
 
@@ -44,7 +58,7 @@ impl FuncHandle {
                     let call_frame = CallFrame::new(self.addr, wasm_func, call_frame_params, 0);
                     Stack::new(call_frame)
                 }
-                Function::Host(_) => return Err(Error::Other("Can't call Host function directly".to_owned())),
+                Function::Host(_) => return Err(Error::Other("Can't call Host function directly".to_string())),
             },
         };
 
@@ -52,31 +66,30 @@ impl FuncHandle {
     }
 }
 
-#[derive(Debug)]
 /// A typed function handle
+#[derive(Debug)]
 pub struct FuncHandleTyped<P, R> {
     /// The underlying function handle
     pub func: FuncHandle,
     pub(crate) _marker: core::marker::PhantomData<(P, R)>,
 }
 
+/// Things that can be converted to WasmValues
 pub trait IntoWasmValueTuple {
+    /// Do the conversion
     fn into_wasm_value_tuple(self) -> Vec<WasmValue>;
 }
 
+/// Things that can constructed from WasmValues
 pub trait FromWasmValueTuple {
+    /// Do the conversion
     fn from_wasm_value_tuple(values: &[WasmValue]) -> Result<Self>
     where
         Self: Sized;
 }
 
-#[derive(Debug)]
-pub enum CallResultTyped<R: FromWasmValueTuple> {
-    Done(R),
-    Incomplete,
-}
-
 impl<P: IntoWasmValueTuple, R: FromWasmValueTuple> FuncHandleTyped<P, R> {
+    /// See [`FuncHandle::call`]
     pub fn call(self, params: P, stack: Option<Stack>) -> Result<ExecHandleTyped<R>> {
         let exec_handle = self.func.call(params.into_wasm_value_tuple(), stack)?;
 
@@ -156,11 +169,15 @@ macro_rules! impl_from_wasm_value_tuple_single {
     };
 }
 
+/// Types that can be construted from a tuple
 pub trait ValTypesFromTuple {
+    /// Do the conversion
     fn val_types() -> Box<[ValType]>;
 }
 
+/// Types that can be turned into a tuple
 pub trait ToValType {
+    /// Do the conversion
     fn to_val_type() -> ValType;
 }
 

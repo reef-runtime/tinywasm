@@ -17,7 +17,7 @@ pub enum ParseError {
     /// An unsupported operator was encountered
     UnsupportedOperator(String),
     /// An error occurred while parsing the module
-    ParseError {
+    Parse {
         /// The error message
         message: String,
         /// The offset in the module where the error occurred
@@ -46,7 +46,7 @@ impl Display for ParseError {
             Self::DuplicateSection(section) => write!(f, "duplicate section: {}", section),
             Self::EmptySection(section) => write!(f, "empty section: {}", section),
             Self::UnsupportedOperator(operator) => write!(f, "unsupported operator: {}", operator),
-            Self::ParseError { message, offset } => {
+            Self::Parse { message, offset } => {
                 write!(f, "error parsing module: {} at offset {}", message, offset)
             }
             Self::InvalidEncoding(encoding) => write!(f, "invalid encoding: {:?}", encoding),
@@ -64,7 +64,7 @@ impl crate::std::error::Error for ParseError {}
 
 impl From<wasmparser::BinaryReaderError> for ParseError {
     fn from(value: wasmparser::BinaryReaderError) -> Self {
-        Self::ParseError { message: value.message().to_string(), offset: value.offset() }
+        Self::Parse { message: value.message().to_string(), offset: value.offset() }
     }
 }
 

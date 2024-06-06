@@ -1,13 +1,24 @@
-use alloc::boxed::Box;
-use alloc::collections::BTreeMap;
-use alloc::string::{String, ToString};
-use alloc::vec::Vec;
+//! Types for resources that a Wasm module requires
+
+use alloc::{
+    boxed::Box,
+    collections::BTreeMap,
+    format,
+    string::{String, ToString},
+    vec::Vec,
+};
 use core::fmt::Debug;
 
+use crate::error::{Error, LinkingError, Result};
 use crate::func::{FromWasmValueTuple, IntoWasmValueTuple, ValTypesFromTuple};
-use crate::store::MemoryInstance;
-use crate::{Error, LinkingError, MemoryRef, MemoryRefMut, Result, VecExt};
-use tinywasm_types::*;
+use crate::reference::{MemoryRef, MemoryRefMut};
+use crate::store::memory::MemoryInstance;
+use crate::types::{
+    value::WasmValue, ExternalKind, FuncAddr, GlobalAddr, GlobalType, Import, MemAddr, MemoryType, Module, TableAddr,
+    TableType,
+};
+use crate::types::{FuncType, WasmFunction};
+use crate::VecExt;
 
 /// The internal representation of a function
 #[derive(Debug)]
@@ -30,13 +41,13 @@ impl Function {
 
 /// A host function
 pub struct HostFunction {
-    pub(crate) ty: tinywasm_types::FuncType,
+    pub(crate) ty: FuncType,
     pub(crate) func: HostFuncInner,
 }
 
 impl HostFunction {
     /// Get the function's type
-    pub fn ty(&self) -> &tinywasm_types::FuncType {
+    pub fn ty(&self) -> &FuncType {
         &self.ty
     }
 
@@ -141,7 +152,7 @@ impl Extern {
 
     /// Create a new function import
     pub fn func(
-        ty: &tinywasm_types::FuncType,
+        ty: &FuncType,
         func: impl Fn(FuncContext<'_>, &[WasmValue]) -> Result<Vec<WasmValue>> + 'static,
     ) -> Self {
         Self::Function(Some(Function::Host(HostFunction { func: Box::new(func), ty: ty.clone() })))
@@ -161,7 +172,7 @@ impl Extern {
             Ok(result.into_wasm_value_tuple().to_vec())
         };
 
-        let ty = tinywasm_types::FuncType { params: P::val_types(), results: R::val_types() };
+        let ty = FuncType { params: P::val_types(), results: R::val_types() };
         Self::Function(Some(Function::Host(HostFunction { func: Box::new(inner_func), ty })))
     }
 

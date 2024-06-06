@@ -1,7 +1,11 @@
-use crate::unlikely;
-use crate::{Error, Result, Trap};
 use alloc::{vec, vec::Vec};
-use tinywasm_types::*;
+
+use crate::error::{Error, Result, Trap};
+use crate::types::{
+    value::{ValType, WasmValue},
+    Addr, TableAddr, TableType,
+};
+use crate::unlikely;
 
 const MAX_TABLE_SIZE: u32 = 10000000;
 
@@ -41,7 +45,7 @@ impl TableInstance {
     pub(crate) fn grow_to_fit(&mut self, new_size: usize) -> Result<()> {
         if new_size > self.elements.len() {
             if unlikely(new_size > self.kind.size_max.unwrap_or(MAX_TABLE_SIZE) as usize) {
-                return Err(crate::Trap::TableOutOfBounds { offset: new_size, len: 1, max: self.elements.len() }.into());
+                return Err(Trap::TableOutOfBounds { offset: new_size, len: 1, max: self.elements.len() }.into());
             }
 
             self.elements.resize(new_size, TableElement::Uninitialized);
@@ -56,12 +60,12 @@ impl TableInstance {
     // Initialize the table with the given elements
     pub(crate) fn init_raw(&mut self, offset: i32, init: &[TableElement]) -> Result<()> {
         let offset = offset as usize;
-        let end = offset.checked_add(init.len()).ok_or_else(|| {
-            Error::Trap(crate::Trap::TableOutOfBounds { offset, len: init.len(), max: self.elements.len() })
-        })?;
+        let end = offset
+            .checked_add(init.len())
+            .ok_or_else(|| Error::Trap(Trap::TableOutOfBounds { offset, len: init.len(), max: self.elements.len() }))?;
 
         if end > self.elements.len() || end < offset {
-            return Err(crate::Trap::TableOutOfBounds { offset, len: init.len(), max: self.elements.len() }.into());
+            return Err(Trap::TableOutOfBounds { offset, len: init.len(), max: self.elements.len() }.into());
         }
 
         self.elements[offset..end].copy_from_slice(init);

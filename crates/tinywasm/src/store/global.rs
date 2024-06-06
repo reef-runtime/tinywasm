@@ -1,7 +1,9 @@
 use alloc::{format, string::ToString};
-use tinywasm_types::*;
 
-use crate::{runtime::RawWasmValue, unlikely, Error, Result};
+use crate::error::{Error, Result};
+use crate::runtime::RawWasmValue;
+use crate::types::{value::WasmValue, GlobalType};
+use crate::unlikely;
 
 /// A WebAssembly Global Instance
 ///
@@ -14,7 +16,7 @@ pub(crate) struct GlobalInstance {
 
 impl GlobalInstance {
     pub(crate) fn new(ty: GlobalType, value: RawWasmValue) -> Self {
-        Self { ty, value: value.into() }
+        Self { ty, value }
     }
 
     #[inline]
@@ -37,33 +39,5 @@ impl GlobalInstance {
 
         self.value = val.into();
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_global_instance_get_set() {
-        let global_type = GlobalType { ty: ValType::I32, mutable: true };
-        let initial_value = RawWasmValue::from(10i32);
-
-        let mut global_instance = GlobalInstance::new(global_type, initial_value);
-
-        // Test `get`
-        assert_eq!(global_instance.get(), WasmValue::I32(10), "global value should be 10");
-
-        // Test `set` with correct type
-        assert!(global_instance.set(WasmValue::I32(20)).is_ok(), "set should succeed");
-        assert_eq!(global_instance.get(), WasmValue::I32(20), "global value should be 20");
-
-        // Test `set` with incorrect type
-        assert!(matches!(global_instance.set(WasmValue::F32(1.0)), Err(Error::Other(_))), "set should fail");
-
-        // Test `set` on immutable global
-        let immutable_global_type = GlobalType { ty: ValType::I32, mutable: false };
-        let mut immutable_global_instance = GlobalInstance::new(immutable_global_type, initial_value);
-        assert!(matches!(immutable_global_instance.set(WasmValue::I32(30)), Err(Error::Other(_))));
     }
 }

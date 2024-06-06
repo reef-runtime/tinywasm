@@ -1,5 +1,6 @@
 use core::fmt::Debug;
-use tinywasm_types::{ValType, WasmValue};
+
+use crate::types::value::{ValType, WasmValue};
 
 /// A raw wasm value.
 ///

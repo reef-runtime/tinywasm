@@ -4,9 +4,13 @@ use argh::FromArgs;
 // use args::WasmArg;
 use color_eyre::eyre::Result;
 use rkyv::AlignedVec;
-use tinywasm::{CallResultTyped, Instance};
-use tinywasm::{Extern, FuncContext, MemoryStringExt};
-use tinywasm::{Imports, PAGE_SIZE};
+
+use tinywasm::{
+    exec::CallResultTyped,
+    imports::{Extern, FuncContext, Imports},
+    reference::MemoryStringExt,
+    Instance, PAGE_SIZE,
+};
 
 #[derive(FromArgs)]
 /// TinyWasm CLI
@@ -84,8 +88,8 @@ fn run(module_bytes: &[u8], arg: i32) -> Result<()> {
             "reef",
             "progress",
             Extern::typed_func(|mut _ctx: FuncContext<'_>, done: f32| {
-                if done < 0.0 || done > 1.0 {
-                    return Err(tinywasm::Error::Io(io::Error::other(
+                if !(0.0..=1.0).contains(&done) {
+                    return Err(tinywasm::error::Error::Io(io::Error::other(
                         "Invalid range: progress must be between 0.0 and 1.0",
                     )));
                 }

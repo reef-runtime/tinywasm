@@ -1,41 +1,26 @@
-#![no_std]
-#![doc(test(
-    no_crate_inject,
-    attr(deny(warnings, rust_2018_idioms), allow(dead_code, unused_assignments, unused_variables))
-))]
-#![warn(missing_docs, missing_debug_implementations, rust_2018_idioms, unreachable_pub)]
-#![forbid(unsafe_code)]
-#![cfg_attr(not(feature = "std"), feature(error_in_core))]
-//! See [`tinywasm`](https://docs.rs/tinywasm) for documentation.
-
-extern crate alloc;
+//! Parser that translates [`wasmparser`](https://docs.rs/wasmparser) types to types used by this crate.
 
 #[cfg(feature = "std")]
 extern crate std;
 
-mod conversion;
-mod error;
-mod module;
-mod visit;
 use alloc::{string::ToString, vec::Vec};
-pub use error::*;
-use module::ModuleReader;
-use tinywasm_types::WasmFunction;
-use wasmparser::{Validator, WasmFeaturesInflated};
 
-pub use tinywasm_types::Module;
+mod conversion;
+pub(crate) mod error;
+pub(crate) mod module;
+mod visit;
+
+use crate::types::{Module, WasmFunction};
+use error::{ParseError, Result};
+use module::ModuleReader;
+use wasmparser::{Validator, WasmFeaturesInflated};
 
 /// A WebAssembly parser
 #[derive(Default, Debug)]
-pub struct Parser {}
+pub(crate) struct Parser {}
 
 impl Parser {
-    /// Create a new parser instance
-    pub fn new() -> Self {
-        Self {}
-    }
-
-    fn create_validator(&self) -> Validator {
+    fn create_validator() -> Validator {
         let features = WasmFeaturesInflated {
             bulk_memory: true,
             floats: true,
@@ -66,9 +51,9 @@ impl Parser {
     }
 
     /// Parse a [`TinyWasmModule`] from bytes
-    pub fn parse_module_bytes(&self, wasm: impl AsRef<[u8]>) -> Result<Module> {
+    pub(crate) fn parse_module_bytes(wasm: impl AsRef<[u8]>) -> Result<Module> {
         let wasm = wasm.as_ref();
-        let mut validator = self.create_validator();
+        let mut validator = Self::create_validator();
         let mut reader = ModuleReader::new();
 
         for payload in wasmparser::Parser::new(0).parse_all(wasm) {
@@ -80,50 +65,6 @@ impl Parser {
         }
 
         reader.try_into()
-    }
-
-    #[cfg(feature = "std")]
-    /// Parse a [`TinyWasmModule`] from a file. Requires `std` feature.
-    pub fn parse_module_file(&self, path: impl AsRef<crate::std::path::Path> + Clone) -> Result<Module> {
-        use alloc::format;
-        let f = crate::std::fs::File::open(path.clone())
-            .map_err(|e| ParseError::Other(format!("Error opening file {:?}: {}", path.as_ref(), e)))?;
-
-        let mut reader = crate::std::io::BufReader::new(f);
-        self.parse_module_stream(&mut reader)
-    }
-
-    #[cfg(feature = "std")]
-    /// Parse a [`TinyWasmModule`] from a stream. Requires `std` feature.
-    pub fn parse_module_stream(&self, mut stream: impl std::io::Read) -> Result<Module> {
-        use alloc::format;
-
-        let mut validator = self.create_validator();
-        let mut reader = ModuleReader::new();
-        let mut buffer = Vec::new();
-        let mut parser = wasmparser::Parser::new(0);
-        let mut eof = false;
-
-        loop {
-            match parser.parse(&buffer, eof)? {
-                wasmparser::Chunk::NeedMoreData(hint) => {
-                    let len = buffer.len();
-                    buffer.extend((0..hint).map(|_| 0u8));
-                    let read_bytes = stream
-                        .read(&mut buffer[len..])
-                        .map_err(|e| ParseError::Other(format!("Error reading from stream: {}", e)))?;
-                    buffer.truncate(len + read_bytes);
-                    eof = read_bytes == 0;
-                }
-                wasmparser::Chunk::Parsed { consumed, payload } => {
-                    reader.process_payload(payload, &mut validator)?;
-                    buffer.drain(..consumed);
-                    if eof || reader.end_reached {
-                        return reader.try_into();
-                    }
-                }
-            };
-        }
     }
 }
 

@@ -1,6 +1,6 @@
-pub mod interpreter;
+pub(crate) mod interpreter;
 mod stack;
 mod value;
 
-pub use stack::*;
+pub(crate) use stack::*;
 pub(crate) use value::RawWasmValue;

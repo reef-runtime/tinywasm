@@ -1,7 +1,10 @@
-use crate::{conversion, ParseError, Result};
-use alloc::{boxed::Box, format, vec::Vec};
-use tinywasm_types::{Data, Element, Export, FuncType, Global, Import, Instruction, MemoryType, TableType, ValType};
 use wasmparser::{FuncValidatorAllocations, Payload, Validator};
+
+use super::{conversion, ParseError, Result};
+use crate::types::{
+    instructions::Instruction, value::ValType, Data, Element, Export, FuncType, Global, Import, MemoryType, TableType,
+};
+use alloc::{boxed::Box, format, vec::Vec};
 
 pub(crate) type Code = (Box<[Instruction]>, Box<[ValType]>);
 

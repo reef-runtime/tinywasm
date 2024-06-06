@@ -1,5 +1,7 @@
+//! Modules for types related to controlling the execution of Wasm
+
+use alloc::vec::Vec;
 use core::mem::take;
-use std::io;
 
 use rkyv::{
     ser::{
@@ -8,19 +10,22 @@ use rkyv::{
     },
     AlignedVec,
 };
-use tinywasm_types::WasmValue;
 
-use crate::{
-    runtime::{RawWasmValue, Stack},
-    CallResultTyped, FromWasmValueTuple, FuncHandle, Result,
-};
+use crate::error::Result;
+use crate::func::{FromWasmValueTuple, FuncHandle};
+use crate::runtime::{RawWasmValue, Stack};
+use crate::types::value::WasmValue;
 
+/// Retuened by [`run`](ExecHandle::run) to indicate if the function finsihed execution with the given max_cycles
 #[derive(Debug)]
 pub enum CallResult {
+    /// Execution finished and the resulting function return is included
     Done(Vec<WasmValue>),
+    /// Execution has not finished and `run` has to be called again
     Incomplete,
 }
 
+/// Handle to a running execution context of a Wasm function
 #[derive(Debug)]
 pub struct ExecHandle {
     pub(crate) func_handle: FuncHandle,
@@ -28,6 +33,7 @@ pub struct ExecHandle {
 }
 
 impl ExecHandle {
+    /// Make progress on the execution of the started Wasm function. `max_cycles` instructions will be executed.
     pub fn run(&mut self, max_cycles: usize) -> Result<CallResult> {
         let runtime = crate::runtime::interpreter::Interpreter {};
         if !runtime.exec(&mut self.func_handle.instance, &mut self.stack, max_cycles)? {
@@ -49,6 +55,7 @@ impl ExecHandle {
         ))
     }
 
+    /// Take the current execution state and serialize it
     pub fn serialize(&mut self, buf: AlignedVec) -> Result<AlignedVec> {
         let memory = &mut self.func_handle.instance.memories[0];
         let globals = self.func_handle.instance.globals.iter().map(|g| g.value).collect();
@@ -59,7 +66,7 @@ impl ExecHandle {
             HeapScratch::<0x1000>::new(),
             SharedSerializeMap::new(),
         );
-        serializer.serialize_value(&data).map_err(io::Error::other)?;
+        serializer.serialize_value(&data).expect("Failed to serialize state");
 
         memory.data = data.memory;
         self.stack = data.stack;
@@ -68,6 +75,16 @@ impl ExecHandle {
     }
 }
 
+/// Like [`CallResult`], but typed
+#[derive(Debug)]
+pub enum CallResultTyped<R: FromWasmValueTuple> {
+    /// See [`CallResult::Done`]
+    Done(R),
+    /// See [`CallResult::Incomplete`]
+    Incomplete,
+}
+
+/// [`ExecHandle`] but typed
 #[derive(Debug)]
 pub struct ExecHandleTyped<R: FromWasmValueTuple> {
     pub(crate) exec_handle: ExecHandle,
@@ -75,6 +92,7 @@ pub struct ExecHandleTyped<R: FromWasmValueTuple> {
 }
 
 impl<R: FromWasmValueTuple> ExecHandleTyped<R> {
+    /// See [`ExecHandle::run`]
     pub fn run(&mut self, max_cycles: usize) -> Result<CallResultTyped<R>> {
         // Call the underlying WASM function
         let result = self.exec_handle.run(max_cycles)?;
@@ -85,6 +103,7 @@ impl<R: FromWasmValueTuple> ExecHandleTyped<R> {
         })
     }
 
+    /// See [`ExecHandle::serialize`]
     pub fn serialize(&mut self, buf: AlignedVec) -> Result<AlignedVec> {
         self.exec_handle.serialize(buf)
     }

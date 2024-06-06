@@ -1,10 +1,12 @@
-use crate::{conversion::convert_blocktype, Result};
+use alloc::{boxed::Box, format, string::ToString, vec::Vec};
 
-use crate::conversion::{convert_heaptype, convert_memarg, convert_valtype};
-use alloc::string::ToString;
-use alloc::{boxed::Box, format, vec::Vec};
-use tinywasm_types::Instruction;
 use wasmparser::{FuncValidator, FunctionBody, VisitOperator, WasmModuleResources};
+
+use crate::parser::{
+    conversion::{convert_blocktype, convert_heaptype, convert_memarg, convert_valtype},
+    error::{ParseError, Result},
+};
+use crate::types::instructions::Instruction;
 
 struct ValidateThenVisit<'a, T, U>(T, &'a mut U);
 macro_rules! validate_then_visit {
@@ -110,7 +112,7 @@ impl FunctionBuilder {
 
     #[cold]
     fn unsupported(&self, name: &str) -> Result<()> {
-        Err(crate::ParseError::UnsupportedOperator(format!("Unsupported instruction: {:?}", name)))
+        Err(ParseError::UnsupportedOperator(format!("Unsupported instruction: {:?}", name)))
     }
 
     #[inline(always)]
@@ -445,8 +447,8 @@ impl<'a> wasmparser::VisitOperator<'a> for FunctionBuilder {
                     .expect("else_instr_end_offset is too large, tinywasm does not support if blocks that large");
 
                 #[cold]
-                fn error() -> crate::ParseError {
-                    crate::ParseError::UnsupportedOperator(
+                fn error() -> ParseError {
+                    ParseError::UnsupportedOperator(
                         "Expected to end an if block, but the last label was not an if".to_string(),
                     )
                 }
