@@ -1,6 +1,5 @@
 #![no_std]
 #![warn(missing_docs, missing_debug_implementations, rust_2018_idioms, unreachable_pub)]
-// #![cfg_attr(nightly, feature(error_in_core))]
 
 //! A tiny WebAssembly Runtime written in Rust
 //!
@@ -42,15 +41,9 @@ mod runtime;
 mod store;
 pub mod types;
 
-// pub use error::*;
-// pub use exec::*;
-// pub use func::*;
-// pub use imports::*;
 pub use instance::Instance;
 pub use module::parse_bytes;
-// pub use reference::*;
 pub use types::Module;
-// pub use types::*;
 
 pub(crate) const CALL_STACK_SIZE: usize = 1024;
 

@@ -1,7 +1,6 @@
 #![allow(missing_docs)]
 //! Types used by other parts of the crate.
 
-extern crate alloc;
 use alloc::boxed::Box;
 use core::{fmt::Debug, ops::Range};
 

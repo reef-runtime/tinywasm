@@ -1,5 +1,6 @@
-use super::{FuncAddr, GlobalAddr, LabelAddr, LocalAddr, TableAddr, TypeAddr, ValType};
-use crate::types::{DataAddr, ElemAddr, MemAddr};
+use crate::types::{
+    DataAddr, ElemAddr, FuncAddr, GlobalAddr, LabelAddr, LocalAddr, MemAddr, TableAddr, TypeAddr, ValType,
+};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 #[archive(check_bytes)]

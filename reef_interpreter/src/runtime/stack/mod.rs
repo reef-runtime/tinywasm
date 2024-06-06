@@ -2,9 +2,9 @@ mod block_stack;
 mod call_stack;
 mod value_stack;
 
-pub(crate) use self::{call_stack::CallStack, value_stack::ValueStack};
 pub(crate) use block_stack::{BlockFrame, BlockStack, BlockType};
-pub(crate) use call_stack::CallFrame;
+pub(crate) use call_stack::{CallFrame, CallStack};
+pub(crate) use value_stack::ValueStack;
 
 /// A WebAssembly Stack
 #[derive(Debug, Clone, PartialEq, Eq, Default, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]

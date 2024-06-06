@@ -35,10 +35,10 @@ fn main() -> Result<()> {
     let path = cwd.join(args.wasm_file.clone());
     let module_bytes = match args.wasm_file.ends_with(".wat") {
         true => return Err(color_eyre::eyre::eyre!("wat support is not enabled in this build")),
-        false => &std::fs::read(path)?,
+        false => std::fs::read(path)?,
     };
 
-    run(module_bytes, args.wasm_arg)
+    run(&module_bytes, args.wasm_arg)
 }
 
 const MAX_CYCLES: usize = 5000;

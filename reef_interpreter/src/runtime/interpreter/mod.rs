@@ -2,11 +2,10 @@ use alloc::format;
 use alloc::string::ToString;
 use core::ops::{BitAnd, BitOr, BitXor, Neg};
 
-use super::{RawWasmValue, Stack};
 use crate::error::{Error, Result, Trap};
 use crate::imports::{FuncContext, Function};
 use crate::instance::Instance;
-use crate::runtime::{BlockFrame, BlockType, CallFrame};
+use crate::runtime::{BlockFrame, BlockType, CallFrame, RawWasmValue, Stack};
 use crate::types::{instructions::BlockArgs, value::ValType, ElementKind};
 use crate::{cold, unlikely, VecExt};
 

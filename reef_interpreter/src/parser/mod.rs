@@ -1,8 +1,5 @@
 //! Parser that translates [`wasmparser`](https://docs.rs/wasmparser) types to types used by this crate.
 
-#[cfg(feature = "std")]
-extern crate std;
-
 use alloc::{string::ToString, vec::Vec};
 
 mod conversion;

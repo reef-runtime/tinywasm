@@ -1,10 +1,11 @@
+use alloc::{boxed::Box, format, vec::Vec};
+
 use wasmparser::{FuncValidatorAllocations, Payload, Validator};
 
-use super::{conversion, ParseError, Result};
+use crate::parser::{conversion, ParseError, Result};
 use crate::types::{
     instructions::Instruction, value::ValType, Data, Element, Export, FuncType, Global, Import, MemoryType, TableType,
 };
-use alloc::{boxed::Box, format, vec::Vec};
 
 pub(crate) type Code = (Box<[Instruction]>, Box<[ValType]>);
 
